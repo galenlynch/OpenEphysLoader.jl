@@ -1,0 +1,12 @@
+header.format = 'Open Ephys Data Format'; 
+header.version = 0.4; 
+header.header_bytes = 1024;
+header.description = 'each record contains one 64-bit timestamp, one 16-bit sample count (N), 1 uint16 recordingNumber, N 16-bit samples, and one 10-byte record marker (0 1 2 3 4 5 6 7 8 255)'; 
+header.date_created = '21-Jul-2015 145012';
+header.channel = 'CH30';
+header.channelType = 'Continuous';
+header.sampleRate = 30000;
+header.blockLength = 1024;
+header.bufferSize = 1024;
+header.bitVolts = 0.195;
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
