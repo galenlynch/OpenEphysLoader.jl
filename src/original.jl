@@ -25,7 +25,7 @@ const HEADER_MATTYPES = [x[1] for x in HEADER_TYPE_MAP]
 const HEADER_TARGET_TYPES = [x[2] for x in HEADER_TYPE_MAP]
 const N_HEADER_LINE = length(HEADER_TYPE_MAP)
 
-immutable OriginalHeader{T<:String, S<:Integer, R<:Real}
+immutable OriginalHeader{T<:AbstractString, S<:Integer, R<:Real}
     format::T
     version::VersionNumber
     headerbytes::S
@@ -43,7 +43,7 @@ function OriginalHeader(io::IOStream)
     head = readbytes(io, HEADER_N_BYTES)
     @assert length(head) == HEADER_N_BYTES "Unable to read all of the header"
     headstr = strencoder(HEADER_STRING_ENCODING, head)
-    substrs = @compat split(headstr, ';', keep = false)
+    substrs =  split(headstr, ';', keep = false)
     resize!(substrs, N_HEADER_LINE)
     OriginalHeader(
         map(parseline, zip(HEADER_MATTYPES, HEADER_TARGET_TYPES, substrs))...
@@ -51,12 +51,12 @@ function OriginalHeader(io::IOStream)
 end
 strencoder(::Type{ASCIIString}, strbytes::AbstractArray) = ascii(strbytes)::ASCIIString
 strencoder(::Type{UTF8String}, strbytes::AbstractArray) = utf8(strbytes)::UTF8String
-parseline{T, M<:MATLABdata}(::Type{M}, ::Type{T}, str::String) = parseto(T, matparse(M, str))::T
+parseline{T, M<:MATLABdata}(::Type{M}, ::Type{T}, str::AbstractString) = parseto(T, matparse(M, str))::T
 parseline(tup::Tuple) = parseline(tup...)
-parseto{T<:Number}(::Type{T}, str::String) = parse(str)::T
-parseto(::Type{DateTime}, str::String) = DateTime(str, HEADER_DATEFORMAT)
-parseto(::Type{UTF8String}, str::String) = utf8(str)::UTF8String
-function matparse{T<:MATLABdata, S<:String}(::Type{T}, str::S)
+parseto{T<:Number}(::Type{T}, str::AbstractString) = parse(str)::T
+parseto(::Type{DateTime}, str::AbstractString) = DateTime(str, HEADER_DATEFORMAT)
+parseto(::Type{UTF8String}, str::AbstractString) = utf8(str)::UTF8String
+function matparse{T<:MATLABdata, S<:AbstractString}(::Type{T}, str::S)
     regex = rx(T)
     goodread = false
     if ismatch(regex, str)
@@ -75,14 +75,14 @@ rx(::Type{MATstr}) = r" = '(.*)'$"
 rx(::Type{MATint}) = r" = (\d*)$"
 rx(::Type{MATfloat}) = r" = ([-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?)$"
 if VERSION < v"0.4-"
-    parseto(::Type{VersionNumber}, str::String) = VersionNumber(parseversion(str)...)
-    parseto{T<:String}(::Type{T}, str::T) = str
-    parseto(::Type{ASCIIString}, str::String) = ascii(str)::ASCIIString
-    parseversion(str::String) = map(parse, @compat split(str, '.', keep = false))
+    parseto(::Type{VersionNumber}, str::AbstractString) = VersionNumber(parseversion(str)...)
+    parseto{T<:AbstractString}(::Type{T}, str::T) = str
+    parseto(::Type{ASCIIString}, str::AbstractString) = ascii(str)::ASCIIString
+    parseversion(str::AbstractString) = map(parse, split(str, '.', keep = false))
 else
-    parseto(::Type{VersionNumber}, str::String) = VersionNumber(str)
-    parseto{T<:String}(::Type{T}, str::T) = str
-    parseto{T<:String}(::Type{T}, str::String) = T(str)
+    parseto(::Type{VersionNumber}, str::AbstractString) = VersionNumber(str)
+    parseto{T<:AbstractString}(::Type{T}, str::T) = str
+    parseto{T<:AbstractString}(::Type{T}, str::AbstractString) = T(str)
 end
 
 function show(io::IO, a::OriginalHeader)

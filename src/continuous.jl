@@ -53,8 +53,8 @@ type ContBlockBuff
 end
 function ContBlockBuff()
     blockhead = ContBlockHeader()
-    bodybuffer = @compat Vector{UInt8}(CONT_REC_BODY_SIZE)
-    blocktail = @compat Vector{UInt8}(CONT_REC_TAIL_SIZE)
+    bodybuffer = Vector{UInt8}(CONT_REC_BODY_SIZE)
+    blocktail =  Vector{UInt8}(CONT_REC_TAIL_SIZE)
     ContBlockBuff(blockhead, bodybuffer, blocktail)
 end
 function ==(a::ContBlockBuff, b::ContBlockBuff)
@@ -66,7 +66,7 @@ function ==(a::ContBlockBuff, b::ContBlockBuff)
 end
 
 ### exposed functions ###
-function loadcontinuous{D}(filepath::String, ::Type{D} = Float64; checktail::Bool = false)
+function loadcontinuous{D}(filepath::AbstractString, ::Type{D} = Float64; checktail::Bool = false)
     nblocks = inspect_contfile(filepath)
     nblocks > 0 || throw(UnreadableError("$filepath is unreadable or improperly formatted"))
     data, timestamps, recordingnumbers, fileheader =
@@ -75,7 +75,7 @@ function loadcontinuous{D}(filepath::String, ::Type{D} = Float64; checktail::Boo
 end
 
 ## Load .continuous files in a directory: may need to be renamed
-function loaddirectory{D}(directorypath::String, ::Type{D} = Float64;
+function loaddirectory{D}(directorypath::AbstractString, ::Type{D} = Float64;
          checktail::Bool = false, sortfiles::Bool = true, verbose::Bool = false)
     # Find continuous files
     filenames = readdir(directorypath)
@@ -91,13 +91,13 @@ end
 loaddirectory{D}(::Type{D} = Float64; checktail::Bool = false,
     sortfiles::Bool = true, verbose::Bool = false) = loaddirectory(".", D;
         checktail = checktail, sortfiles = sortfiles, verbose = verbose)
-matchcontinuous(str::String) = ismatch(r"\.continuous$", str)
+matchcontinuous(str::AbstractString) = ismatch(r"\.continuous$", str)
 
 function interpolate_timestamps{D}(timestamps::Vector{Int},
      fileheader::OriginalHeader, ::Type{D} = Float64)
      nblock = fileheader.blocklength
      nstamps = length(timestamps)
-     timepoints = @compat Vector{D}(nstamps * nblock)
+     timepoints =  Vector{D}(nstamps * nblock)
      for stampno = 1:nstamps
          timepoints[(stampno - 1) * nblock + (1:nblock)] =
             timestamps[stampno] - 1 + (1:nblock)
@@ -108,7 +108,7 @@ end
 function interpolate_timestamps{H<:OriginalHeader, T<:Vector{Int}, D}(
             timestamps::Array{T}, head::Array{H}, ::Type{D} = Float64)
     nseries = length(timestamps)
-    timepoints = @compat Vector{Vector{D}}(nseries)
+    timepoints = Vector{Vector{D}}(nseries)
     for seriesno = 1:nseries
         timepoints[seriesno] = interpolate_timestamps(timestamps[seriesno], head[seriesno], D)
     end
@@ -129,8 +129,8 @@ interpolate_timestamps{D}(d::ContinuousData, ::Type{D} = Float64) =
 
 function sort_continuousfiles{T<:ByteString}(filenames::Vector{T})
     nfiles = length(filenames)
-    channeltype = @compat Vector{UTF8String}(nfiles)
-    channelno = @compat Vector{Int}(nfiles)
+    channeltype =  Vector{UTF8String}(nfiles)
+    channelno =  Vector{Int}(nfiles)
     for fno in 1:nfiles
         channeltype[fno], channelno[fno] = getcont_typeno(filenames[fno])
     end
@@ -138,9 +138,9 @@ function sort_continuousfiles{T<:ByteString}(filenames::Vector{T})
     sortidx = sortperm(channelno)
     return filenames[sortidx]
 end
-function getcont_typeno(str::String)
+function getcont_typeno(str::AbstractString)
     m = match(r"_(CH|AUX)(\d+)\.", str)
-    return m.captures[1]::String, parse(m.captures[2])::Int
+    return m.captures[1]::AbstractString, parse(m.captures[2])::Int
 end
 
 # Version for producing a vector of vectors
@@ -148,10 +148,10 @@ function load_contfiles{T<:Vector, S<:ByteString}(files::Vector{S}, ::Type{T};
     checktail::Bool = false, verbose::Bool = false)
     # Pre-allocation
     nfiles = length(files)
-    data_vec = @compat Vector{T}(nfiles)
-    time_vec = @compat Vector{Vector{Int}}(nfiles)
-    recno_vec = @compat Vector{Vector{Int}}(nfiles)
-    header_vec = @compat Vector{ConcreteHeader}(nfiles)
+    data_vec =  Vector{T}(nfiles)
+    time_vec =  Vector{Vector{Int}}(nfiles)
+    recno_vec =  Vector{Vector{Int}}(nfiles)
+    header_vec =  Vector{ConcreteHeader}(nfiles)
     # Load each file
     badfiles = Int[] # Empty vector
     for fno in 1:nfiles
@@ -183,7 +183,7 @@ function load_contfiles{T<:Matrix, S<:ByteString}(files::Vector{S}, ::Type{T};
     checktail::Bool = false, verbose::Bool = false) # Can throw UnreadableError
     ## Check for bad files and ensure that making a matrix is possible
     nfiles = length(files)
-    nblocks = @compat Vector{Int}(nfiles)
+    nblocks =  Vector{Int}(nfiles)
     badfiles = Int[] # Empty vector
     for fno in 1:nfiles
         nblocks[fno] = inspect_contfile(files[fno])
@@ -239,19 +239,19 @@ function load_contfiles{T<:Matrix, S<:ByteString}(files::Vector{S}, ::Type{T};
 end
 function allocate_contfile_output{T<:Matrix}(nblocks::Integer, nfiles::Integer, ::Type{T})
     nsamples = nblocks * CONT_REC_N_SAMP
-    data_mat = @compat T(nsamples, nfiles)
-    time_mat = @compat Array{Int, 2}(nblocks, nfiles)
-    recno_mat = @compat Array{Int, 2}(nblocks, nfiles)
-    header_vec = @compat Vector{ConcreteHeader}(nfiles)
+    data_mat =  T(nsamples, nfiles)
+    time_mat =  Array{Int, 2}(nblocks, nfiles)
+    recno_mat =  Array{Int, 2}(nblocks, nfiles)
+    header_vec =  Vector{ConcreteHeader}(nfiles)
     return data_mat, time_mat, recno_mat, header_vec
 end
 
-function _loadcontinuous{D}(filepath::String, nblocks::Int, ::Type{D} = Float64;
+function _loadcontinuous{D}(filepath::AbstractString, nblocks::Int, ::Type{D} = Float64;
     checktail::Bool = false)
     # Data vectors
-    data = @compat Vector{D}(nblocks * CONT_REC_N_SAMP) # Number of samples
-    timestamps = @compat Vector{Int}(nblocks)
-    recordingnumbers = @compat Vector{Int}(nblocks)
+    data =  Vector{D}(nblocks * CONT_REC_N_SAMP) # Number of samples
+    timestamps =  Vector{Int}(nblocks)
+    recordingnumbers =  Vector{Int}(nblocks)
     blockbuff  = ContBlockBuff()
     fileheader, nblocksread = _loadcontinuous!(filepath, nblocks, D, data,
                 timestamps, recordingnumbers, blockbuff; checktail = checktail)
@@ -264,11 +264,11 @@ function _loadcontinuous{D}(filepath::String, nblocks::Int, ::Type{D} = Float64;
     return data, timestamps, recordingnumbers, fileheader
 end
 # version of loadcontinuous for internal use: mutates existing data arrays
-function _loadcontinuous!{D}(filepath::String,  nblocks::Int, ::Type{D},
+function _loadcontinuous!{D}(filepath::AbstractString,  nblocks::Int, ::Type{D},
     data::AbstractArray, timestamps::AbstractArray, recordingnumbers::AbstractArray,
     blockbuff::ContBlockBuff; checktail::Bool = false)
     io = open(filepath)
-    local fileheader
+    local fileheader, nblocksread
     try # Ensure that file will be closed
         fileheader = OriginalHeader(io)
         nblocksread = read_contbody!(io, nblocks, data, timestamps, recordingnumbers,
@@ -360,17 +360,17 @@ end
 
 ### Utility functions ###
 
-function convertdata!{D<:FloatingPoint}(::Type{D}, data::AbstractArray, fileheader::OriginalHeader)
+function convertdata!{D<:AbstractFloat}(::Type{D}, data::AbstractArray, fileheader::OriginalHeader)
     broadcast!(*, data, data, fileheader.bitvolts) # Multiply data by scalar in place
 end
 convertdata!{D<:Integer}(::Type{D}, data::AbstractArray, fileheader::OriginalHeader) = nothing
 
-function convert_timepoints!{T<:FloatingPoint}(::Type{T}, timepoints::AbstractArray, fileheader::OriginalHeader)
+function convert_timepoints!{T<:AbstractFloat}(::Type{T}, timepoints::AbstractArray, fileheader::OriginalHeader)
     broadcast!(*, timepoints, timepoints, 1/fileheader.samplerate) # Multiply data by scalar in place
 end
 convert_timepoints!{T<:Integer}(::Type{T}, timepoints::AbstractArray, fileheader::OriginalHeader) = nothing
 
-function inspect_contfile(filepath::String)
+function inspect_contfile(filepath::AbstractString)
     nblocks = -1 # Indicates bad file
     if isfile(filepath) && isreadable(filepath)
         fsize = filesize(filepath)

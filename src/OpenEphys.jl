@@ -1,6 +1,6 @@
 module OpenEphys
 # Module to interact with Open Ephys files
-using Compat
+
 if VERSION < v"0.4-"
     using Dates
 end
