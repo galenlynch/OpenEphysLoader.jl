@@ -204,9 +204,9 @@ function load_contfiles{T<:Matrix, S<:ByteString}(files::Vector{S}, ::Type{T};
     blockbuff = ContBlockBuff()
     for fno in 1:nfiles
         verbose && println("Loading $(files[fno])")
-        dataview = sub(data_mat, :, fno)
-        timeview = sub(time_mat, :, fno)
-        recview = sub(recno_mat, :, fno)
+        dataview = view(data_mat, :, fno)
+        timeview = view(time_mat, :, fno)
+        recview = view(recno_mat, :, fno)
         header_vec[fno], nblocksread =
             _loadcontinuous!(files[fno], dir_nblocks, eltype(T), dataview, timeview,
                 recview, blockbuff; checktail = checktail)
