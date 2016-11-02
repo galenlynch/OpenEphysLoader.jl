@@ -16,13 +16,6 @@ const CONT_REC_TAIL_SIZE = sizeof(CONT_REC_END_MARKER)
 const CONT_REC_SIZE = CONT_REC_HEAD_SIZE + CONT_REC_BODY_SIZE + CONT_REC_TAIL_SIZE
 
 ### Types ###
-if VERSION < v"0.4-"
-    typealias HeaderOut Union(OriginalHeader, Array)
-    typealias IntOut Union(Array{Int}, Vector{Vector{Int}})
-else
-    typealias HeaderOut Union{OriginalHeader, Array}
-    typealias IntOut Union{Array{Int},  Vector{Vector{Int}}}
-end
 typealias ConcreteHeader OriginalHeader{UTF8String, Int, Float64}
 
 immutable ContinuousData{A<:Array, B<:IntOut, H<:HeaderOut} <: OriginalData
