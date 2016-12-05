@@ -113,7 +113,7 @@ linearindexing{T<:OEArray}(::Type{T}) = Base.LinearFast()
 setindex!(::OEArray, ::Int) = throw(ReadOnlyMemoryError())
 
 function getindex{T, C}(A::SampleArray{T, C}, i::Integer)
-    idx = sampno_to_idx(i)
+    idx = sampno_to_pos(i)
     sample_filebytes = A.contfile.filemmap[idx:idx + CONT_REC_BYTES_PER_SAMP - 1]
     sample = ntoh(reinterpret(CONT_REC_SAMP_BITTYPE, sample_filebytes)[1])
     return convert_sample(T, sample, A.contfile.header.bitvolts)
@@ -141,7 +141,7 @@ function getindex(A::JointArray, i::Integer)
 end
 
 ### location functions ###
-function sampno_to_idx(sampno::Integer)
+function sampno_to_pos(sampno::Integer)
     block_sample_start = block_start_pos(sampno_to_block(sampno)) + CONT_REC_HEAD_SIZE
     return block_sample_start + (sampno - 1) % CONT_REC_N_SAMP * CONT_REC_BYTES_PER_SAMP
 end
