@@ -219,9 +219,10 @@ function convert_timepoint{T<:AbstractFloat}(::Type{T}, sampleno::Integer, sampl
 end
 convert_timepoint{T<:Integer}(::Type{T}, sampleno::Integer, ::Integer) = convert(T, sampleno)
 
-function count_blocks(file)
+function count_blocks(file::IOStream)
     fsize = stat(file).size
     return div(fsize - HEADER_N_BYTES, CONT_REC_SIZE)
 end
 
-count_data(file) = count_blocks(file) * CONT_REC_N_SAMP
+count_data(numblocks::Integer) = numblocks * CONT_REC_N_SAMP
+count_data(file::IOStream) = count_data(count_blocks(file))
