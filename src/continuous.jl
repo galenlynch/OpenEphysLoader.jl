@@ -151,7 +151,7 @@ sampno_to_block(sampno::Integer) = div(sampno - 1, CONT_REC_N_SAMP) + 1
 block_start_pos(block_no::Integer) = (block_no - 1) * CONT_REC_SIZE + 1
 
 ### Verification functions ###
-function check_filesize(file)
+function check_filesize(file::IOStream)
     @assert rem(filesize(file) - HEADER_N_BYTES, CONT_REC_SIZE) == 0 "File not the right size"
 end
 
