@@ -150,45 +150,10 @@ sampno_to_block(sampno::Integer) = div(sampno - 1, CONT_REC_N_SAMP) + 1
 
 block_start_pos(block_no::Integer) = (block_no - 1) * CONT_REC_SIZE + 1
 
-### Functions for loading from a directory ###
-function loaddirectory{D}(directorypath::AbstractString, ::Type{D} = Float64;
-         checktail::Bool = false, sortfiles::Bool = true)
-    # Find continuous files
-    filenames = readdir(directorypath)
-    filenames = filter(matchcontinuous, filenames)
-    if sortfiles
-        filenames = sort_continuousfiles(filenames)
-    end
-    # Load continuous files
-end
-loaddirectory{D}(::Type{D} = Float64; checktail::Bool = false,
-    sortfiles::Bool = true, verbose::Bool = false) = loaddirectory(".", D;
-        checktail = checktail, sortfiles = sortfiles)
-
-matchcontinuous(str::AbstractString) = ismatch(r"\.continuous$", str)
-
-function sort_continuousfiles{T<:ByteString}(filenames::Vector{T})
-    nfiles = length(filenames)
-    channeltype =  Vector{UTF8String}(nfiles)
-    channelno =  Vector{Int}(nfiles)
-    for fno in 1:nfiles
-        channeltype[fno], channelno[fno] = getcont_typeno(filenames[fno])
-    end
-    channelno[channeltype .== "AUX"] += 1000 # Make sure aux channels are sorted last
-    sortidx = sortperm(channelno)
-    return filenames[sortidx]
-end
-
-function getcont_typeno(str::AbstractString)
-    m = match(r"_(CH|AUX)(\d+)\.", str)
-    return m.captures[1]::AbstractString, parse(m.captures[2])::Int
-end
-
 ### Verification functions ###
 function check_filesize(file)
     @assert rem(filesize(file) - HEADER_N_BYTES, CONT_REC_SIZE) == 0 "File not the right size"
 end
-
 
 function check_contfile(filemmap::Vector{UInt8}, nblock::Integer)
     for block in 1:nblock
@@ -197,28 +162,18 @@ function check_contfile(filemmap::Vector{UInt8}, nblock::Integer)
     end
 end
 
-function verify_contblock_header(filemmap::Vector{UInt8}, blockno::Integer)
-    nsamp_idx = block_start_pos(blockno) + sizeof(CONT_REC_TIME_BITTYPE)
-    nsamp_bytes = filemmap[nsamp_idx:nsamp_idx + sizeof(CONT_REC_N_SAMP_BITTYPE) - 1]
-    return reinterpret(CONT_REC_N_SAMP_BITTYPE, nsamp_bytes)[1] == CONT_REC_N_SAMP
-end
-
-function verify_contblock_tail(filemmap::Vector{UInt8}, blockno::Integer)
-    tailstart = block_start_pos(blockno) + CONT_REC_HEAD_SIZE + CONT_REC_BODY_SIZE
-    return filemmap[tailstart:tailstart + CONT_REC_TAIL_SIZE - 1] == CONT_REC_END_MARKER
-end
-
+### File access and conversion ###
 function read_into!(io::IOStream, block::DataBlock, databuff::Vector{CONT_REC_SAMP_BITTYPE},
                check::Bool)
     goodread = read_into!(io, block, check)
     goodread && convert_block!(block, databuff)
     return goodread
 end
-function read_into!(io::IOStream, block::DataBlock; check::Bool = false)
+function read_into!(io::IOStream, block::DataBlock, check::Bool = false)
     goodread = read_into!(io, block.head)
     goodread || return goodread
     ## Read the body
-    nbytes = readbytes!(io, block.body, CONT_REC_BODY_SIZE) # Read block body into buffer
+    nbytes = readbytes!(io, block.body, CONT_REC_BODY_SIZE)
     goodread = nbytes == CONT_REC_BODY_SIZE
     goodread || return goodread
     if check
@@ -255,7 +210,6 @@ function convert_block!(block::DataBlock, databuff::Vector{CONT_REC_SAMP_BITTYPE
     end
     copy!(contents, databuff)
 end
-
 
 function verify_tail!(io::IOStream, tail::Vector{UInt8})
     nbytes = readbytes!(io, tail, CONT_REC_TAIL_SIZE)
