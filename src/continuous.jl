@@ -30,34 +30,34 @@ type DataBlock
     head::BlockHeader
     body::Vector{UInt8}
     tail::Vector{UInt8}
-    blockno::UInt8
 end
 function DataBlock()
     head = BlockHeader()
     body = Vector{UInt8}(CONT_REC_BODY_SIZE)
     tail =  Vector{UInt8}(CONT_REC_TAIL_SIZE)
-    DataBlock(head, body, tail, 0)
+    DataBlock(head, body, tail)
 end
 
 immutable ContinuousFile{T<: Integer, S<:Integer, H<:OriginalHeader}
     io::IOStream
     block::DataBlock
-    databuff::Vector{CONT_REC_SAMP_BITTYPE}
+    blockdata::Vector{CONT_REC_SAMP_BITTYPE}
+    blockno::UInt8
     nsample::T
     nblock::S
     header::H
 end
 function ContinuousFile(io::IOStream, check::Bool = true)
     datalen = stat(io).size - HEADER_N_BYTES
-    filemmap = Mmap.mmap(io, Vector{UInt8}, datalen, HEADER_N_BYTES)
+    block = DataBlock()
+    blockdata = Vector{CONT_REC_SAMP_BITTYPE}(CONT_REC_N_SAMP)
     fileheader = OriginalHeader(io) # Read header
-    nsample = count_data(io)
     nblock = count_blocks(io)
+    nsample = count_data(nblock)
     if check
         check_filesize(io)
-        check_contfile(filemmap, nblock)
     end
-    return ContinuousFile(io, filemmap, nsample, nblock, fileheader)
+    return ContinuousFile(io, block, blockdata, 0, nsample, nblock, fileheader)
 end
 ContinuousFile(file_name::AbstractString; check::Bool = true) =
     ContinuousFile(open(file_name, "r"), check)
@@ -141,32 +141,23 @@ function getindex(A::JointArray, i::Integer)
 end
 
 ### location functions ###
-function sampno_to_pos(sampno::Integer)
-    block_sample_start = block_start_pos(sampno_to_block(sampno)) + CONT_REC_HEAD_SIZE
-    return block_sample_start + (sampno - 1) % CONT_REC_N_SAMP * CONT_REC_BYTES_PER_SAMP
-end
+# position is zero-based
+sampno_to_block_pos(sampno::Integer) = block_start_pos(sampno_to_block(sampno))
 
 sampno_to_block(sampno::Integer) = div(sampno - 1, CONT_REC_N_SAMP) + 1
 
-block_start_pos(block_no::Integer) = (block_no - 1) * CONT_REC_SIZE + 1
+block_start_pos(block_no::Integer) = (block_no - 1) * CONT_REC_SIZE + CONT_REC_HEAD_SIZE
 
 ### Verification functions ###
 function check_filesize(file::IOStream)
     @assert rem(filesize(file) - HEADER_N_BYTES, CONT_REC_SIZE) == 0 "File not the right size"
 end
 
-function check_contfile(filemmap::Vector{UInt8}, nblock::Integer)
-    for block in 1:nblock
-        @assert verify_contblock_header(filemmap, block) "File corrupt: bad header in block $block"
-        @assert verify_contblock_tail(filemmap, block) "File corrupt: bad tail in block $block"
-    end
-end
-
 ### File access and conversion ###
-function read_into!(io::IOStream, block::DataBlock, databuff::Vector{CONT_REC_SAMP_BITTYPE},
+function read_into!(io::IOStream, block::DataBlock, blockdata::Vector{CONT_REC_SAMP_BITTYPE},
                check::Bool)
     goodread = read_into!(io, block, check)
-    goodread && convert_block!(block, databuff)
+    goodread && convert_block!(block, blockdata)
     return goodread
 end
 function read_into!(io::IOStream, block::DataBlock, check::Bool = false)
@@ -202,13 +193,13 @@ function read_into!(io::IOStream, head::BlockHeader)
     return goodread
 end
 
-function convert_block!(block::DataBlock, databuff::Vector{CONT_REC_SAMP_BITTYPE})
+function convert_block!(block::DataBlock, blockdata::Vector{CONT_REC_SAMP_BITTYPE})
     contents = reinterpret(CONT_REC_SAMP_BITTYPE, block.body) # readbuff is UInt8
     # Correct for big endianness of this data block
     for idx in eachindex(contents)
         @inbounds contents[idx] = ntoh(contents[idx])
     end
-    copy!(contents, databuff)
+    copy!(contents, blockdata)
 end
 
 function verify_tail!(io::IOStream, tail::Vector{UInt8})
