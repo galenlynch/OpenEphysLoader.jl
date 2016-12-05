@@ -1,12 +1,12 @@
-# code for the .continuous original files
+# code for loading .continuous files
 
 ### Constants ###
-
 const CONT_REC_TIME_BITTYPE = Int64
 const CONT_REC_N_SAMP = 1024
 const CONT_REC_N_SAMP_BITTYPE = UInt16
 const CONT_REC_REC_NO_BITTYPE = UInt16
 const CONT_REC_SAMP_BITTYPE = Int16
+const CONT_REC_BYTES_PER_SAMP = sizeof(CONT_REC_SAMP_BITTYPE)
 const CONT_REC_END_MARKER = UInt8[0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06,
                                   0x07, 0x08, 0xff]
 const CONT_REC_HEAD_SIZE = mapreduce(sizeof, +, [CONT_REC_TIME_BITTYPE,
@@ -16,14 +16,8 @@ const CONT_REC_TAIL_SIZE = sizeof(CONT_REC_END_MARKER)
 const CONT_REC_SIZE = CONT_REC_HEAD_SIZE + CONT_REC_BODY_SIZE + CONT_REC_TAIL_SIZE
 
 ### Types ###
+typealias IntOut Union{Array{Int},  Vector{Vector{Int}}}
 typealias ConcreteHeader OriginalHeader{UTF8String, Int, Float64}
-
-immutable ContinuousData{A<:Array, B<:IntOut, H<:HeaderOut} <: OriginalData
-    data::A
-    timestamps::B
-    recordingnumbers::B
-    fileheaders::H
-end
 
 type ContBlockHeader
     timestamp::CONT_REC_TIME_BITTYPE
@@ -31,45 +25,133 @@ type ContBlockHeader
     recordingnumber::CONT_REC_REC_NO_BITTYPE
 end
 ContBlockHeader() = ContBlockHeader(0, 0, 0)
-function ==(a::ContBlockHeader, b::ContBlockHeader)
-    equality = true
-    for fld in fieldnames(ContBlockHeader)
-        equality = equality && a.(fld) == b.(fld)
-    end
-    return equality
-end
 
 type ContBlockBuff
     blockhead::ContBlockHeader
     bodybuffer::Vector{UInt8}
     blocktail::Vector{UInt8}
+    blockno::UInt8
 end
 function ContBlockBuff()
     blockhead = ContBlockHeader()
     bodybuffer = Vector{UInt8}(CONT_REC_BODY_SIZE)
     blocktail =  Vector{UInt8}(CONT_REC_TAIL_SIZE)
-    ContBlockBuff(blockhead, bodybuffer, blocktail)
+    ContBlockBuff(blockhead, bodybuffer, blocktail, 0)
 end
-function ==(a::ContBlockBuff, b::ContBlockBuff)
-    equality = true
-    for fld in fieldnames(ContBlockBuff)
-        equality = equality && a.(fld) == b.(fld) # Recurse on fields
+
+immutable ContinuousFile{T<: Integer, S<:Integer, H<:OriginalHeader}
+    io::IOStream
+    filemmap::Vector{UInt8}
+    blockbuff::ContBlockBuff
+    nsample::T
+    nblock::S
+    header::H
+end
+function ContinuousFile(io::IOStream, check::Bool = true)
+    datalen = stat(io).size - HEADER_N_BYTES
+    filemmap = Mmap.mmap(io, Vector{UInt8}, datalen, HEADER_N_BYTES)
+    fileheader = OriginalHeader(io) # Read header
+    nsample = count_data(io)
+    nblock = count_blocks(io)
+    if check
+        check_filesize(io)
+        check_contfile(filemmap, nblock)
     end
-    return equality
+    return ContinuousFile(io, filemmap, nsample, nblock, fileheader)
+end
+ContinuousFile(file_name::AbstractString; check::Bool = true) =
+    ContinuousFile(open(file_name, "r"), check)
+
+abstract OEArray{T, C<:ContinuousFile} <: AbstractArray{T, 1}
+rangetypes = ((:SampleArray, Real),
+              (:TimeArray, Real),
+              (:RecNoArray, Integer))
+for (typename, typeparam) = rangetypes
+    @eval begin
+        immutable $(typename){T<:$(typeparam), C<:ContinuousFile} <: OEArray{T, C}
+            contfile::C
+        end
+        $(typename){T, C<:ContinuousFile}(::Type{T}, contfile::C) = $(typename){T, C}(contfile)
+    end
 end
 
-### exposed functions ###
-function loadcontinuous{D}(filepath::AbstractString, ::Type{D} = Float64; checktail::Bool = false)
-    nblocks = inspect_contfile(filepath)
-    nblocks > 0 || throw(UnreadableError("$filepath is unreadable or improperly formatted"))
-    data, timestamps, recordingnumbers, fileheader =
-        _loadcontinuous(filepath, nblocks, D; checktail = checktail)
-    return ContinuousData(data, timestamps, recordingnumbers, fileheader)
+immutable JointArray{S,T,R,C<:ContinuousFile} <: OEArray{Tuple{S,T,R}, C}
+    samples::SampleArray{S, C}
+    times::TimeArray{T, C}
+    recnos::RecNoArray{R, C}
+    contfile::C
+
+    function JointArray(samples, times, recnos, contfile)
+        statstruct = stat(contfile.io)
+        statcollection = map(x -> stat(x.contfile.io), (samples, times, recnos))
+        samefiles = map(x -> x.inode == statstruct.inode &&
+                        x.device == statstruct.device, statcollection)
+        all(samefiles) || error("Arrays for JointArray must be from the same file")
+        new(samples, times, recnos, contfile)
+    end
+end
+function JointArray{S, T, R, C<:ContinuousFile}(samples::SampleArray{S, C},
+                                                times::TimeArray{T, C},
+                                                recnos::RecNoArray{R, C},
+                                                contfile::C)
+    JointArray{S,T,R,C}(samples, times, recnos, contfile)
+end
+function JointArray(contfile::ContinuousFile)
+    samples = SampleArray(Float64, contfile)
+    times = TimeArray(Float64, contfile)
+    recnos = RecNoArray(Int, contfile)
+    return JointArray(samples, times, recnos, contfile)
 end
 
-## Load .continuous files in a directory: may need to be renamed
+### Array interface ###
+length(A::OEArray) = A.contfile.nsample
+
+size(A::OEArray) = (length(A), 1)
+
+linearindexing{T<:OEArray}(::Type{T}) = Base.LinearFast()
+
+setindex!(::OEArray, ::Int) = throw(ReadOnlyMemoryError())
+
+function getindex{T, C}(A::SampleArray{T, C}, i::Integer)
+    idx = sampno_to_idx(i)
+    sample_filebytes = A.contfile.filemmap[idx:idx + CONT_REC_BYTES_PER_SAMP - 1]
+    sample = ntoh(reinterpret(CONT_REC_SAMP_BITTYPE, sample_filebytes)[1])
+    return convert_sample(T, sample, A.contfile.header.bitvolts)
+end
+
+function getindex{T, C}(A::TimeArray{T, C}, i::Integer)
+    blockstartpos = block_start_idx(sampno_to_block(i))
+    byteidxes = blockstartpos:(blockstartpos + sizeof(CONT_REC_TIME_BITTYPE) - 1)
+    sampleno_filebytes = A.contfile.filemmap[byteidxes]
+    block_sampleno = reinterpret(CONT_REC_TIME_BITTYPE, sampleno_filebytes)[1]
+    sampleno = block_sampleno + (i - 1) % CONT_REC_N_SAMP
+    return convert_timepoint(T, sampleno, A.contfile.header.samplerate)
+end
+
+function getindex{T, C}(A::RecNoArray{T, C}, i::Integer)
+    recno_pos = block_start_idx(sampno_to_block(i)) +
+        sizeof(CONT_REC_TIME_BITTYPE) +
+        sizeof(CONT_REC_N_SAMP_BITTYPE)
+    recno_filebytes = A.contfile.filemmap[recno_pos:recno_pos + sizeof(CONT_REC_REC_NO_BITTYPE) - 1]
+    return T(reinterpret(CONT_REC_REC_NO_BITTYPE, recno_filebytes)[1])
+end
+
+function getindex(A::JointArray, i::Integer)
+    return A.samples[i], A.times[i], A.recnos[i]
+end
+
+### location functions ###
+function sampno_to_idx(sampno::Integer)
+    block_sample_start = block_start_idx(sampno_to_block(sampno)) + CONT_REC_HEAD_SIZE
+    return block_sample_start + (sampno - 1) % CONT_REC_N_SAMP * CONT_REC_BYTES_PER_SAMP
+end
+
+sampno_to_block(sampno::Integer) = div(sampno - 1, CONT_REC_N_SAMP) + 1
+
+block_start_idx(block_no::Integer) = (block_no - 1) * CONT_REC_SIZE + 1
+### Functions for loading from a directory ###
 function loaddirectory{D}(directorypath::AbstractString, ::Type{D} = Float64;
-         checktail::Bool = false, sortfiles::Bool = true, verbose::Bool = false)
+         checktail::Bool = false, sortfiles::Bool = true)
     # Find continuous files
     filenames = readdir(directorypath)
     filenames = filter(matchcontinuous, filenames)
@@ -77,48 +159,12 @@ function loaddirectory{D}(directorypath::AbstractString, ::Type{D} = Float64;
         filenames = sort_continuousfiles(filenames)
     end
     # Load continuous files
-    data, timestamps, recordingnumbers, fileheaders =
-        load_contfiles(filenames, D; checktail = checktail, verbose = verbose)
-    return ContinuousData(data, timestamps, recordingnumbers, fileheaders)
 end
 loaddirectory{D}(::Type{D} = Float64; checktail::Bool = false,
     sortfiles::Bool = true, verbose::Bool = false) = loaddirectory(".", D;
-        checktail = checktail, sortfiles = sortfiles, verbose = verbose)
+        checktail = checktail, sortfiles = sortfiles)
+
 matchcontinuous(str::AbstractString) = ismatch(r"\.continuous$", str)
-
-function interpolate_timestamps{D}(timestamps::Vector{Int},
-     fileheader::OriginalHeader, ::Type{D} = Float64)
-     nblock = fileheader.blocklength
-     nstamps = length(timestamps)
-     timepoints =  Vector{D}(nstamps * nblock)
-     for stampno = 1:nstamps
-         timepoints[(stampno - 1) * nblock + (1:nblock)] =
-            timestamps[stampno] - 1 + (1:nblock)
-     end
-     @assert fileheader.samplerate > 0
-     convert_timepoints!(D, timepoints, fileheader)
-end
-function interpolate_timestamps{H<:OriginalHeader, T<:Vector{Int}, D}(
-            timestamps::Array{T}, head::Array{H}, ::Type{D} = Float64)
-    nseries = length(timestamps)
-    timepoints = Vector{Vector{D}}(nseries)
-    for seriesno = 1:nseries
-        timepoints[seriesno] = interpolate_timestamps(timestamps[seriesno], head[seriesno], D)
-    end
-    return timepoints
-end
-function interpolate_timestamps{H<:OriginalHeader, T<:Matrix{Int}, D}(
-                    timestamps::T, head::Array{H}, ::Type{D})
-    if size(timestamps, 2) > 1
-        allcolsame = all(timestamps[:,1] .== timestamps)
-        allcolsame || error("Matrix timestamps with differing columns not yet implemented")
-    end
-    interpolate_timestamps(timestamps[:,1], head[1], D)
-end
-interpolate_timestamps{D}(d::ContinuousData, ::Type{D} = Float64) =
-    interpolate_timestamps(d.timestamps, d.fileheaders, D)
-
-### Functions for loading from a directory ###
 
 function sort_continuousfiles{T<:ByteString}(filenames::Vector{T})
     nfiles = length(filenames)
@@ -131,255 +177,50 @@ function sort_continuousfiles{T<:ByteString}(filenames::Vector{T})
     sortidx = sortperm(channelno)
     return filenames[sortidx]
 end
+
 function getcont_typeno(str::AbstractString)
     m = match(r"_(CH|AUX)(\d+)\.", str)
     return m.captures[1]::AbstractString, parse(m.captures[2])::Int
 end
 
-# Version for producing a vector of vectors
-function load_contfiles{T<:Vector, S<:ByteString}(files::Vector{S}, ::Type{T};
-    checktail::Bool = false, verbose::Bool = false)
-    # Pre-allocation
-    nfiles = length(files)
-    data_vec =  Vector{T}(nfiles)
-    time_vec =  Vector{Vector{Int}}(nfiles)
-    recno_vec =  Vector{Vector{Int}}(nfiles)
-    header_vec =  Vector{ConcreteHeader}(nfiles)
-    # Load each file
-    badfiles = Int[] # Empty vector
-    for fno in 1:nfiles
-        nblocks = inspect_contfile(files[fno])
-        if nblocks > 0
-            verbose && println("Loading $(files[fno])")
-            data_vec[fno], time_vec[fno], recno_vec[fno], header_vec[fno] =
-                _loadcontinuous(files[fno], nblocks, eltype(T); checktail = checktail)
-        else
-            warn("$fno cannot be accessed or is improperly formatted, skipping...")
-            push!(badfiles, fno)
-        end
-    end
-    # Clean up
-    if !isempty(badfiles)
-        deleteat!(data_vec, badfiles)
-        deleteat!(time_vec, badfiles)
-        deleteat!(recno_vec, badfiles)
-        deleteat!(header_vec, badfiles)
-    end
-    return data_vec, time_vec, recno_vec, header_vec
-end
-load_contfiles{T<:Real, S<:ByteString}(files::Vector{S}, ::Type{T};
-    checktail::Bool = false, verbose::Bool = false) =
-        load_contfiles(files, Vector{T}; checktail = checktail, verbose = verbose)
-
-# Version for producing matrix of data
-function load_contfiles{T<:Matrix, S<:ByteString}(files::Vector{S}, ::Type{T};
-    checktail::Bool = false, verbose::Bool = false) # Can throw UnreadableError
-    ## Check for bad files and ensure that making a matrix is possible
-    nfiles = length(files)
-    nblocks =  Vector{Int}(nfiles)
-    badfiles = Int[] # Empty vector
-    for fno in 1:nfiles
-        nblocks[fno] = inspect_contfile(files[fno])
-        if nblocks[fno] < 0
-            warn("$(files[fno]) is unreadable or improperly formatted, skipping...")
-            push!(badfiles, fno)
-        end
-    end
-    if !isempty(badfiles) # clean up
-        nfiles -= length(badfiles)
-        deleteat!(nblocks, badfiles)
-        badfiles = Int[]
-    end
-    all(nblocks[1] .== nblocks) || error("Files must have the same amount of data to make an array")
-    dir_nblocks = nblocks[1] # size of all files in this directory
-    data_mat, time_mat, recno_mat, header_vec =
-                allocate_contfile_output(dir_nblocks, nfiles, T)
-    blockbuff = ContBlockBuff()
-    for fno in 1:nfiles
-        verbose && println("Loading $(files[fno])")
-        dataview = view(data_mat, :, fno)
-        timeview = view(time_mat, :, fno)
-        recview = view(recno_mat, :, fno)
-        header_vec[fno], nblocksread =
-            _loadcontinuous!(files[fno], dir_nblocks, eltype(T), dataview, timeview,
-                recview, blockbuff; checktail = checktail)
-        if nblocksread < dir_nblocks
-            warn("$(files[fno]) is corrupt, and cannot be recovered with matrix output.
-                Use vector output to recover partial data.")
-            push!(badfiles, fno)
-        end
-    end
-    if !isempty(badfiles) # Clean up if necessary
-        # Allocate smaller containers for the data
-        ngoodfiles = nfiles - length(badfiles)
-        new_data_mat, new_time_mat, new_recno_mat, new_header_vec =
-                    allocate_contfile_output(dir_nblocks, ngoodfiles, T)
-        # Move good data to the new containers
-        goodidx = setdiff(1:nfiles, badfiles)
-        for (newidx, goodidx) in enumerate(goodidx)
-            new_data_mat[:, newidx] = data_mat[:, goodidx]
-            new_time_mat[:, newidx] = time_mat[:, goodidx]
-            new_recno_mat[:, newidx] = recno_mat[:, goodidx]
-            new_header_vec[newidx] = header_vec[goodidx]
-        end
-        # Replace the output containers (containing partial data) with good data
-        data_mat = new_data_mat
-        time_mat = new_time_mat
-        recno_mat = new_recno_mat
-        header_vec = new_header_vec
-    end
-    return data_mat, time_mat, recno_mat, header_vec
-end
-function allocate_contfile_output{T<:Matrix}(nblocks::Integer, nfiles::Integer, ::Type{T})
-    nsamples = nblocks * CONT_REC_N_SAMP
-    data_mat =  T(nsamples, nfiles)
-    time_mat =  Array{Int, 2}(nblocks, nfiles)
-    recno_mat =  Array{Int, 2}(nblocks, nfiles)
-    header_vec =  Vector{ConcreteHeader}(nfiles)
-    return data_mat, time_mat, recno_mat, header_vec
+### Verification functions ###
+function check_filesize(file)
+    @assert rem(filesize(file) - HEADER_N_BYTES, CONT_REC_SIZE) == 0 "File not the right size"
 end
 
-function _loadcontinuous{D}(filepath::AbstractString, nblocks::Int, ::Type{D} = Float64;
-    checktail::Bool = false)
-    # Data vectors
-    data =  Vector{D}(nblocks * CONT_REC_N_SAMP) # Number of samples
-    timestamps =  Vector{Int}(nblocks)
-    recordingnumbers =  Vector{Int}(nblocks)
-    blockbuff  = ContBlockBuff()
-    fileheader, nblocksread = _loadcontinuous!(filepath, nblocks, D, data,
-                timestamps, recordingnumbers, blockbuff; checktail = checktail)
-    if nblocksread < nblocks
-        warn("Record $(nblocksread + 1) in $filepath is corrupt, returning partial data")
-        resize!(data, nblocksread * CONT_REC_N_SAMP)
-        resize!(timestamps, nblocksread)
-        resize!(recordingnumbers, nblocksread)
+
+function check_contfile(filemmap::Vector{UInt8}, nblock::Integer)
+    for block in 1:nblock
+        @assert verify_contblock_header(filemmap, block) "File corrupt: bad header in block $block"
+        @assert verify_contblock_tail(filemmap, block) "File corrupt: bad tail in block $block"
     end
-    return data, timestamps, recordingnumbers, fileheader
-end
-# version of loadcontinuous for internal use: mutates existing data arrays
-function _loadcontinuous!{D}(filepath::AbstractString,  nblocks::Int, ::Type{D},
-    data::AbstractArray, timestamps::AbstractArray, recordingnumbers::AbstractArray,
-    blockbuff::ContBlockBuff; checktail::Bool = false)
-    io = open(filepath)
-    local fileheader, nblocksread
-    try # Ensure that file will be closed
-        fileheader = OriginalHeader(io)
-        nblocksread = read_contbody!(io, nblocks, data, timestamps, recordingnumbers,
-                    blockbuff; checktail = checktail)
-    finally
-        close(io)
-    end
-    convertdata!(D, data, fileheader)
-    return fileheader, nblocksread
 end
 
-### Read body of file ###
-function read_contbody!(io::IOStream, nblocks::Integer,
-                        data::AbstractArray, timestamps::AbstractArray,
-                        recordingnumbers::AbstractArray, blockbuff::ContBlockBuff;
-                         checktail::Bool = false)
-    blockbuff  = ContBlockBuff()
-    # Loop over data blocks and extract data
-    local blockno::Int # Keep this variable if try block fails
-    goodread = true
-    for blockno in 1:nblocks
-        goodread = read_contblock!(io, blockbuff; checktail = checktail)
-        goodread || break
-        parse_blockbuffer!(blockbuff, data, timestamps, recordingnumbers, blockno)
-    end
-    nblocksread = blockno
-    if !goodread
-        nblocksread -= 1
-    end
-    return nblocksread
+function verify_contblock_header(filemmap::Vector{UInt8}, blockno::Integer)
+    nsamp_idx = block_start_idx(blockno) + sizeof(CONT_REC_TIME_BITTYPE)
+    nsamp_bytes = filemmap[nsamp_idx:nsamp_idx + sizeof(CONT_REC_N_SAMP_BITTYPE) - 1]
+    return reinterpret(CONT_REC_N_SAMP_BITTYPE, nsamp_bytes)[1] == CONT_REC_N_SAMP
 end
 
-function parse_blockbuffer!(blockbuff::ContBlockBuff, data::AbstractArray,
-    timestamps::AbstractArray, recordingnumbers::AbstractArray, blockno::Integer)
-    databuff = copy(blockbuff.bodybuffer)
-    databuff = reinterpret(CONT_REC_SAMP_BITTYPE, databuff) # readbuff is UInt8
-    # Correct for big endianness of this data block
-    for idx in eachindex(databuff)
-        @inbounds databuff[idx] = ntoh(databuff[idx])
-    end
-    offset = (blockno - 1) * CONT_REC_N_SAMP
-    data[offset + (1:CONT_REC_N_SAMP)] = databuff # Place block data into output
-    timestamps[blockno] = blockbuff.blockhead.timestamp
-    recordingnumbers[blockno] = blockbuff.blockhead.recordingnumber
-end
-
-function read_contblock!(io::IOStream, blockbuff::ContBlockBuff; checktail::Bool = false)
-    goodread = read_contblock_header!(io, blockbuff.blockhead)
-    ## Read the body
-    nbytes = readbytes!(io, blockbuff.bodybuffer, CONT_REC_BODY_SIZE) # Read block body into buffer
-    if nbytes != CONT_REC_BODY_SIZE
-        goodread = false
-    end
-    if checktail
-        goodread = goodread && read_contblock_tail!(io, blockbuff.blocktail)
-    else
-        skip(io, CONT_REC_TAIL_SIZE)
-    end
-    return goodread
-end
-
-function read_contblock_header!(io::IOStream, blockhead::ContBlockHeader)
-    goodread = true
-    try
-        blockhead.timestamp = read(io, CONT_REC_TIME_BITTYPE)
-        blockhead.nsample = read(io, CONT_REC_N_SAMP_BITTYPE)
-        if blockhead.nsample != CONT_REC_N_SAMP
-            goodread = false
-        end
-        blockhead.recordingnumber = read(io, CONT_REC_REC_NO_BITTYPE)
-    catch exception
-        if isa(exception, EOFError)
-            goodread = false
-        else
-            rethrow(exception)
-        end
-    end
-    return goodread
-end
-
-function read_contblock_tail!(io::IOStream, blocktail::Vector{UInt8})
-    goodread = true
-    nbytes = readbytes!(io, blocktail, CONT_REC_TAIL_SIZE)
-    if nbytes != CONT_REC_TAIL_SIZE || blocktail != CONT_REC_END_MARKER
-        goodread = false
-    end
-    return goodread
+function verify_contblock_tail(filemmap::Vector{UInt8}, blockno::Integer)
+    tailstart = block_start_idx(blockno) + CONT_REC_HEAD_SIZE + CONT_REC_BODY_SIZE
+    return filemmap[tailstart:tailstart + CONT_REC_TAIL_SIZE - 1] == CONT_REC_END_MARKER
 end
 
 ### Utility functions ###
-
-function convertdata!{D<:AbstractFloat}(::Type{D}, data::AbstractArray, fileheader::OriginalHeader)
-    broadcast!(*, data, data, fileheader.bitvolts) # Multiply data by scalar in place
+function convert_sample{T<:AbstractFloat}(::Type{T}, data::Integer, bitvolts::AbstractFloat)
+   return convert(T, data * bitvolts)
 end
-convertdata!{D<:Integer}(::Type{D}, data::AbstractArray, fileheader::OriginalHeader) = nothing
+convert_sample{T<:Integer}(::Type{T}, data::Integer, ::AbstractFloat) = convert(T, data)
 
-function convert_timepoints!{T<:AbstractFloat}(::Type{T}, timepoints::AbstractArray, fileheader::OriginalHeader)
-    broadcast!(*, timepoints, timepoints, 1/fileheader.samplerate) # Multiply data by scalar in place
+function convert_timepoint{T<:AbstractFloat}(::Type{T}, sampleno::Integer, samplerate::Integer)
+    return convert(T, (sampleno - 1) / samplerate) # First sample is at time zero
 end
-convert_timepoints!{T<:Integer}(::Type{T}, timepoints::AbstractArray, fileheader::OriginalHeader) = nothing
+convert_timepoint{T<:Integer}(::Type{T}, sampleno::Integer, ::Integer) = convert(T, sampleno)
 
-function inspect_contfile(filepath::AbstractString)
-    nblocks = -1 # Indicates bad file
-    if isfile(filepath) && isreadable(filepath)
-        fsize = filesize(filepath)
-        if rem(fsize - HEADER_N_BYTES, CONT_REC_SIZE) == 0
-            nblocks = div((fsize - HEADER_N_BYTES), CONT_REC_SIZE)
-        end
-    end
-    return nblocks::Int # Number of blocks
+function count_blocks(file)
+    fsize = stat(file).size
+    return div(fsize - HEADER_N_BYTES, CONT_REC_SIZE)
 end
 
-function show(io::IO, d::ContinuousData)
-    for fld in (:data, :timestamps, :recordingnumbers)
-        println(io, "$fld:")
-        Base.showlimited(io, d.(fld))
-        print(io, '\n')
-    end
-    println(io, "fileheaders:")
-    Base.showlimited(io, d.fileheaders)
-end
+count_data(file) = count_blocks(file) * CONT_REC_N_SAMP
