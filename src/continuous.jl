@@ -19,30 +19,30 @@ const CONT_REC_SIZE = CONT_REC_HEAD_SIZE + CONT_REC_BODY_SIZE + CONT_REC_TAIL_SI
 typealias IntOut Union{Array{Int},  Vector{Vector{Int}}}
 typealias ConcreteHeader OriginalHeader{UTF8String, Int, Float64}
 
-type ContBlockHeader
+type BlockHeader
     timestamp::CONT_REC_TIME_BITTYPE
     nsample::CONT_REC_N_SAMP_BITTYPE
     recordingnumber::CONT_REC_REC_NO_BITTYPE
 end
-ContBlockHeader() = ContBlockHeader(0, 0, 0)
+BlockHeader() = BlockHeader(0, 0, 0)
 
-type ContBlockBuff
-    blockhead::ContBlockHeader
-    bodybuffer::Vector{UInt8}
-    blocktail::Vector{UInt8}
+type DataBlock
+    head::BlockHeader
+    body::Vector{UInt8}
+    tail::Vector{UInt8}
     blockno::UInt8
 end
-function ContBlockBuff()
-    blockhead = ContBlockHeader()
-    bodybuffer = Vector{UInt8}(CONT_REC_BODY_SIZE)
-    blocktail =  Vector{UInt8}(CONT_REC_TAIL_SIZE)
-    ContBlockBuff(blockhead, bodybuffer, blocktail, 0)
+function DataBlock()
+    head = BlockHeader()
+    body = Vector{UInt8}(CONT_REC_BODY_SIZE)
+    tail =  Vector{UInt8}(CONT_REC_TAIL_SIZE)
+    DataBlock(head, body, tail, 0)
 end
 
 immutable ContinuousFile{T<: Integer, S<:Integer, H<:OriginalHeader}
     io::IOStream
-    filemmap::Vector{UInt8}
-    blockbuff::ContBlockBuff
+    block::DataBlock
+    databuff::Vector{CONT_REC_SAMP_BITTYPE}
     nsample::T
     nblock::S
     header::H
@@ -120,7 +120,7 @@ function getindex{T, C}(A::SampleArray{T, C}, i::Integer)
 end
 
 function getindex{T, C}(A::TimeArray{T, C}, i::Integer)
-    blockstartpos = block_start_idx(sampno_to_block(i))
+    blockstartpos = block_start_pos(sampno_to_block(i))
     byteidxes = blockstartpos:(blockstartpos + sizeof(CONT_REC_TIME_BITTYPE) - 1)
     sampleno_filebytes = A.contfile.filemmap[byteidxes]
     block_sampleno = reinterpret(CONT_REC_TIME_BITTYPE, sampleno_filebytes)[1]
@@ -129,7 +129,7 @@ function getindex{T, C}(A::TimeArray{T, C}, i::Integer)
 end
 
 function getindex{T, C}(A::RecNoArray{T, C}, i::Integer)
-    recno_pos = block_start_idx(sampno_to_block(i)) +
+    recno_pos = block_start_pos(sampno_to_block(i)) +
         sizeof(CONT_REC_TIME_BITTYPE) +
         sizeof(CONT_REC_N_SAMP_BITTYPE)
     recno_filebytes = A.contfile.filemmap[recno_pos:recno_pos + sizeof(CONT_REC_REC_NO_BITTYPE) - 1]
@@ -142,13 +142,14 @@ end
 
 ### location functions ###
 function sampno_to_idx(sampno::Integer)
-    block_sample_start = block_start_idx(sampno_to_block(sampno)) + CONT_REC_HEAD_SIZE
+    block_sample_start = block_start_pos(sampno_to_block(sampno)) + CONT_REC_HEAD_SIZE
     return block_sample_start + (sampno - 1) % CONT_REC_N_SAMP * CONT_REC_BYTES_PER_SAMP
 end
 
 sampno_to_block(sampno::Integer) = div(sampno - 1, CONT_REC_N_SAMP) + 1
 
-block_start_idx(block_no::Integer) = (block_no - 1) * CONT_REC_SIZE + 1
+block_start_pos(block_no::Integer) = (block_no - 1) * CONT_REC_SIZE + 1
+
 ### Functions for loading from a directory ###
 function loaddirectory{D}(directorypath::AbstractString, ::Type{D} = Float64;
          checktail::Bool = false, sortfiles::Bool = true)
@@ -197,14 +198,69 @@ function check_contfile(filemmap::Vector{UInt8}, nblock::Integer)
 end
 
 function verify_contblock_header(filemmap::Vector{UInt8}, blockno::Integer)
-    nsamp_idx = block_start_idx(blockno) + sizeof(CONT_REC_TIME_BITTYPE)
+    nsamp_idx = block_start_pos(blockno) + sizeof(CONT_REC_TIME_BITTYPE)
     nsamp_bytes = filemmap[nsamp_idx:nsamp_idx + sizeof(CONT_REC_N_SAMP_BITTYPE) - 1]
     return reinterpret(CONT_REC_N_SAMP_BITTYPE, nsamp_bytes)[1] == CONT_REC_N_SAMP
 end
 
 function verify_contblock_tail(filemmap::Vector{UInt8}, blockno::Integer)
-    tailstart = block_start_idx(blockno) + CONT_REC_HEAD_SIZE + CONT_REC_BODY_SIZE
+    tailstart = block_start_pos(blockno) + CONT_REC_HEAD_SIZE + CONT_REC_BODY_SIZE
     return filemmap[tailstart:tailstart + CONT_REC_TAIL_SIZE - 1] == CONT_REC_END_MARKER
+end
+
+function read_into!(io::IOStream, block::DataBlock, databuff::Vector{CONT_REC_SAMP_BITTYPE},
+               check::Bool)
+    goodread = read_into!(io, block, check)
+    goodread && convert_block!(block, databuff)
+    return goodread
+end
+function read_into!(io::IOStream, block::DataBlock; check::Bool = false)
+    goodread = read_into!(io, block.head)
+    goodread || return goodread
+    ## Read the body
+    nbytes = readbytes!(io, block.body, CONT_REC_BODY_SIZE) # Read block body into buffer
+    goodread = nbytes == CONT_REC_BODY_SIZE
+    goodread || return goodread
+    if check
+        goodread = verify_tail!(io, block.tail)
+    else
+        skip(io, CONT_REC_TAIL_SIZE)
+    end
+    return goodread
+end
+function read_into!(io::IOStream, head::BlockHeader)
+    goodread = true
+    try
+        head.timestamp = read(io, CONT_REC_TIME_BITTYPE)
+        head.nsample = read(io, CONT_REC_N_SAMP_BITTYPE)
+        if head.nsample != CONT_REC_N_SAMP
+            goodread = false
+        end
+        head.recordingnumber = read(io, CONT_REC_REC_NO_BITTYPE)
+    catch exception
+        if isa(exception, EOFError)
+            goodread = false
+        else
+            rethrow(exception)
+        end
+    end
+    return goodread
+end
+
+function convert_block!(block::DataBlock, databuff::Vector{CONT_REC_SAMP_BITTYPE})
+    contents = reinterpret(CONT_REC_SAMP_BITTYPE, block.body) # readbuff is UInt8
+    # Correct for big endianness of this data block
+    for idx in eachindex(contents)
+        @inbounds contents[idx] = ntoh(contents[idx])
+    end
+    copy!(contents, databuff)
+end
+
+
+function verify_tail!(io::IOStream, tail::Vector{UInt8})
+    nbytes = readbytes!(io, tail, CONT_REC_TAIL_SIZE)
+    goodread = nbytes == CONT_REC_TAIL_SIZE && tail == CONT_REC_END_MARKER
+    return goodread
 end
 
 ### Utility functions ###
