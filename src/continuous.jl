@@ -13,7 +13,7 @@ const CONT_REC_HEAD_SIZE = mapreduce(sizeof, +, [CONT_REC_TIME_BITTYPE,
                              CONT_REC_N_SAMP_BITTYPE, CONT_REC_REC_NO_BITTYPE])
 const CONT_REC_BODY_SIZE = CONT_REC_N_SAMP * sizeof(CONT_REC_SAMP_BITTYPE)
 const CONT_REC_TAIL_SIZE = sizeof(CONT_REC_END_MARKER)
-const CONT_REC_SIZE = CONT_REC_HEAD_SIZE + CONT_REC_BODY_SIZE + CONT_REC_TAIL_SIZE
+const CONT_REC_BLOCK_SIZE = CONT_REC_HEAD_SIZE + CONT_REC_BODY_SIZE + CONT_REC_TAIL_SIZE
 
 ### Types ###
 typealias IntOut Union{Array{Int},  Vector{Vector{Int}}}
@@ -46,6 +46,7 @@ immutable ContinuousFile{T<: Integer, S<:Integer, H<:OriginalHeader}
     nsample::T
     nblock::S
     header::H
+    check::Bool
 end
 function ContinuousFile(io::IOStream, check::Bool = true)
     datalen = stat(io).size - HEADER_N_BYTES
@@ -57,7 +58,7 @@ function ContinuousFile(io::IOStream, check::Bool = true)
     if check
         check_filesize(io)
     end
-    return ContinuousFile(io, block, blockdata, 0, nsample, nblock, fileheader)
+    return ContinuousFile(io, block, blockdata, 0, nsample, nblock, fileheader, check)
 end
 ContinuousFile(file_name::AbstractString; check::Bool = true) =
     ContinuousFile(open(file_name, "r"), check)
@@ -113,10 +114,15 @@ linearindexing{T<:OEArray}(::Type{T}) = Base.LinearFast()
 setindex!(::OEArray, ::Int) = throw(ReadOnlyMemoryError())
 
 function getindex{T, C}(A::SampleArray{T, C}, i::Integer)
-    idx = sampno_to_pos(i)
-    sample_filebytes = A.contfile.filemmap[idx:idx + CONT_REC_BYTES_PER_SAMP - 1]
-    sample = ntoh(reinterpret(CONT_REC_SAMP_BITTYPE, sample_filebytes)[1])
-    return convert_sample(T, sample, A.contfile.header.bitvolts)
+    start_idx = block_start_index(A.contfile.blockno)
+    if A.contfile.blockno <= 0 ||
+        i < start_idx ||
+        i > start_idx + CONT_REC_N_SAMP - 1
+        ## Sample is not in current block
+        read_into!(A.contfile.io, A.contfile.block, A.contfile.blockdata, A.contfile.check)
+    end
+    rel_idx = i - start_idx + 1
+    return A.contfile.blockdata[rel_idx]
 end
 
 function getindex{T, C}(A::TimeArray{T, C}, i::Integer)
@@ -140,17 +146,22 @@ function getindex(A::JointArray, i::Integer)
     return A.samples[i], A.times[i], A.recnos[i]
 end
 
+function index_in_block(block_start_idx::Integer, i::Integer)
+    return block_start_idx > 0 && block_start_idx <= i <= block_start_idx + CONT_REC_N_SAMP - 1
+end
 ### location functions ###
 # position is zero-based
 sampno_to_block_pos(sampno::Integer) = block_start_pos(sampno_to_block(sampno))
 
 sampno_to_block(sampno::Integer) = div(sampno - 1, CONT_REC_N_SAMP) + 1
 
-block_start_pos(block_no::Integer) = (block_no - 1) * CONT_REC_SIZE + CONT_REC_HEAD_SIZE
+block_start_pos(block_no::Integer) = (block_no - 1) * CONT_REC_BLOCK_SIZE + CONT_REC_HEAD_SIZE
+
+block_start_index(block_no::Integer) = (block_no - 1) * CONT_REC_N_SAMP + 1
 
 ### Verification functions ###
 function check_filesize(file::IOStream)
-    @assert rem(filesize(file) - HEADER_N_BYTES, CONT_REC_SIZE) == 0 "File not the right size"
+    @assert rem(filesize(file) - HEADER_N_BYTES, CONT_REC_BLOCK_SIZE) == 0 "File not the right size"
 end
 
 ### File access and conversion ###
@@ -221,7 +232,7 @@ convert_timepoint{T<:Integer}(::Type{T}, sampleno::Integer, ::Integer) = convert
 
 function count_blocks(file::IOStream)
     fsize = stat(file).size
-    return div(fsize - HEADER_N_BYTES, CONT_REC_SIZE)
+    return div(fsize - HEADER_N_BYTES, CONT_REC_BLOCK_SIZE)
 end
 
 count_data(numblocks::Integer) = numblocks * CONT_REC_N_SAMP
