@@ -42,67 +42,61 @@ function DataBlock()
     DataBlock(head, body, data, tail)
 end
 
-immutable ContinuousFile{B<:BlockBuffer, T<:Integer, S<:Integer, H<:OriginalHeader}
+immutable ContinuousFile{T<:Integer, S<:Integer, H<:OriginalHeader}
     io::IOStream
-    block::B
-    blockno::UInt8
     nsample::T
     nblock::S
     header::H
-    check::Bool
 end
 function ContinuousFile(io::IOStream, check::Bool = true)
     block = DataBlock()
     fileheader = OriginalHeader(io) # Read header
     nblock = count_blocks(io)
     nsample = count_data(nblock)
-    if check
-        check_filesize(io)
-    end
     return ContinuousFile(io, block, 0, nsample, nblock, fileheader, check)
 end
 ContinuousFile(file_name::AbstractString; check::Bool = true) =
     ContinuousFile(open(file_name, "r"), check)
 
-abstract OEArray{T, C<:ContinuousFile} <: AbstractArray{T, 1}
-rangetypes = ((:SampleArray, Real),
-              (:TimeArray, Real),
-              (:RecNoArray, Integer))
-for (typename, typeparam) = rangetypes
+abstract OEArray{T, C<:ContinuousFile, B<:BlockBuffer} <: AbstractArray{T, 1}
+arraytypes = ((:SampleArray, Real, DataBlock),
+              (:TimeArray, Real, BlockHeader),
+              (:RecNoArray, Integer, BlockHeader))
+for (typename, typeparam, buffertype) = arraytypes
     @eval begin
-        immutable $(typename){T<:$(typeparam), C<:ContinuousFile} <: OEArray{T, C}
+        immutable $(typename){T<:$(typeparam), C<:ContinuousFile, B<:BlockBuffer} <:
+            OEArray{T, C, B}
             contfile::C
+            block::B
+            blockno::UInt
+            check::Bool
         end
-        $(typename){T, C<:ContinuousFile}(::Type{T}, contfile::C) = $(typename){T, C}(contfile)
+        function $(typename){T, C<:ContinuousFile}(::Type{T}, contfile::C, check::Bool = true)
+            if check
+                check_filesize(contfile.io)
+            end
+            block = $(buffertype)()
+            return $(typename){T, C, $(buffertype)}(contfile, block, 0, check)
+        end
     end
 end
 
-immutable JointArray{S,T,R,C<:ContinuousFile} <: OEArray{Tuple{S,T,R}, C}
-    samples::SampleArray{S, C}
-    times::TimeArray{T, C}
-    recnos::RecNoArray{R, C}
+immutable JointArray{S<:arraytypes[1][2],
+                     T<:arraytypes[2][2],
+                     R<:arraytypes[3][2],
+                     C<:ContinuousFile} <: OEArray{Tuple{S,T,R}, C}
     contfile::C
-
-    function JointArray(samples, times, recnos, contfile)
-        statstruct = stat(contfile.io)
-        statcollection = map(x -> stat(x.contfile.io), (samples, times, recnos))
-        samefiles = map(x -> x.inode == statstruct.inode &&
-                        x.device == statstruct.device, statcollection)
-        all(samefiles) || error("Arrays for JointArray must be from the same file")
-        new(samples, times, recnos, contfile)
+    block::DataBlock
+    blockno::UInt
+    check::Bool
+end
+function JointArray(contfile::ContinuousFile, check::Bool = true)
+    block = DataBlock()
+    blockno = 0
+    if check
+        check_filesize(contfile.io)
     end
-end
-function JointArray{S, T, R, C<:ContinuousFile}(samples::SampleArray{S, C},
-                                                times::TimeArray{T, C},
-                                                recnos::RecNoArray{R, C},
-                                                contfile::C)
-    JointArray{S,T,R,C}(samples, times, recnos, contfile)
-end
-function JointArray(contfile::ContinuousFile)
-    samples = SampleArray(Float64, contfile)
-    times = TimeArray(Float64, contfile)
-    recnos = RecNoArray(Int, contfile)
-    return JointArray(samples, times, recnos, contfile)
+    return JointArray(contfile, block, blockno, check)
 end
 
 ### Array interface ###
@@ -114,52 +108,44 @@ linearindexing{T<:OEArray}(::Type{T}) = Base.LinearFast()
 
 setindex!(::OEArray, ::Int) = throw(ReadOnlyMemoryError())
 
-function getindex{T, C}(A::SampleArray{T, C}, i::Integer)
-    newblock, rel_idx = prepare_block(A.contfile, i)
-    if newblock
-        read_into!(A.contfile.io, A.contfile.block, A.contfile.blockdata, A.contfile.check)
-    end
-    return convert_sample(T, A.contfile.blockdata[rel_idx], A.contfile.header.bitvolts)
-end
-
-function getindex{T, C}(A::TimeArray{T, C}, i::Integer)
-    newblock, rel_idx = prepare_block(A.contfile, i)
-    if newblock
-        read_into!(A.contfile.io, A.contfile.block.head) # block is now in inconsistent state!
-    end
-    sampleno = A.contfile.block.head.timestamp + rel_idx - 1
-    return convert_timepoint(T, sampleno, A.contfile.header.samplerate)
-end
-
-function getindex{T, C}(A::RecNoArray{T, C}, i::Integer)
-    recno_pos = block_start_pos(sampno_to_block(i)) +
-        sizeof(CONT_REC_TIME_BITTYPE) +
-        sizeof(CONT_REC_N_SAMP_BITTYPE)
-    recno_filebytes = A.contfile.filemmap[recno_pos:recno_pos + sizeof(CONT_REC_REC_NO_BITTYPE) - 1]
-    return T(reinterpret(CONT_REC_REC_NO_BITTYPE, recno_filebytes)[1])
+function getindex(A::OEArray, i::Integer)
+    rel_idx = prepare_block(A, i)
+    data = block_data(A, rel_idx)
+    header = get_block_header(A.block)
+    return convert_data(A, header, data)
 end
 
 function getindex(A::JointArray, i::Integer)
     return A.samples[i], A.times[i], A.recnos[i]
 end
 
+function prepare_block(A::OEArray, i::Integer)
+    newblock, rel_idx = relative_block_index(A.blockno, i)
+    if newblock
+        seek_to_containing_block(A.contfile.io, i)
+        read_into!(A.contfile.io, A.block, A.check)
+    end
+    return rel_idx
+end
+
+function relative_block_index(blockno::Integer, i::Integer)
+    start_idx = block_start_index(blockno)
+    newblock = !index_in_block(start_idx, i)
+    rel_idx = i - start_idx + 1
+    return newblock, rel_idx
+end
+
+function seek_to_containing_block(io::IOStream, i::Integer)
+    blockpos = sampno_to_block_pos(i)
+    if blockpos != position(io)
+        seek(io, blockpos)
+    end
+end
+
 function index_in_block(block_start_idx::Integer, i::Integer)
     return block_start_idx > 0 && block_start_idx <= i <= block_start_idx + CONT_REC_N_SAMP - 1
 end
 
-function 
-function prepare_block(contfile::ContinuousFile, i::Integer)
-    start_idx = block_start_index(contfile.blockno)
-    newblock = !index_in_block(start_idx, i)
-    if newblock
-        blockpos = sampno_to_block_pos(i)
-        if blockpos != position(contfile.io)
-            seek(contfile.io, blockpos)
-        end
-    end
-    rel_idx = i - start_idx + 1
-    return newblock, rel_idx
-end
 ### location functions ###
 # position is zero-based
 sampno_to_block_pos(sampno::Integer) = block_start_pos(sampno_to_block(sampno))
@@ -226,15 +212,43 @@ function verify_tail!(io::IOStream, tail::Vector{UInt8})
 end
 
 ### Utility functions ###
-function convert_sample{T<:AbstractFloat}(::Type{T}, data::Integer, bitvolts::AbstractFloat)
-   return convert(T, data * bitvolts)
+block_data(A::SampleArray, rel_idx::Integer) = A.block.data[rel_idx]
+block_data(A::TimeArray, rel_idx::Integer) = A.block.timestamp + rel_idx - 1
+block_data(A::RecNoArray, ::Integer) = A.block.recordingnumber
+function block_data(A::JointArray, rel_idx::Integer)
+    sample = A.block.data[rel_idx]
+    timestamp = A.block.head.timestamp + rel_idx - 1
+    recno = A.block.head.recordingnumber
+    return sample, timestamp, recno
 end
-convert_sample{T<:Integer}(::Type{T}, data::Integer, ::AbstractFloat) = convert(T, data)
 
-function convert_timepoint{T<:AbstractFloat}(::Type{T}, sampleno::Integer, samplerate::Integer)
-    return convert(T, (sampleno - 1) / samplerate) # First sample is at time zero
+get_block_header(H::BlockHeader) = H
+get_block_header(D::DataBlock) = D.head
+function convert_data{T<:AbstractFloat, C, B}(::Type{SampleArray{T, C, B}},
+                                              H::BlockHeader, data::Integer)
+    return convert(T, data * H.bitvolts)
 end
-convert_timepoint{T<:Integer}(::Type{T}, sampleno::Integer, ::Integer) = convert(T, sampleno)
+function convert_data{T<:Integer, C, B}(::Type{SampleArray{T, C, B}},
+                                              ::BlockHeader, data::Integer)
+    return convert(T, data)
+end
+function convert_data{T<:AbstractFloat, C, B}(::Type{TimeArray{T, C, B}},
+                                              H::BlockHeader, data::Integer)
+    return convert(T, (data - 1) / H.samplerate) # First sample is at time zero
+end
+function convert_data{T<:Integer, C, B}(::Type{TimeArray{T, C, B}},
+                                              H::BlockHeader, data::Integer)
+    return convert(T, data)
+end
+function convert_data{T, C, B}(::Type{RecNoArray{T, C, B}}, ::BlockHeader, data::Integer)
+    return convert(T, data)
+end
+function convert_data{S,T,R,C}(::Type{JointArray{S,T,R,C}}, H::BlockHeader, data::Tuple)
+    samp = convert_data(SampleArray{S, C, DataBlock}, H, data[1])
+    timestamp = convert_data(TimeArray{T, C, BlockHeader}, H, data)
+    recno = convert_data(RecNoArray{R, C, BlockHeader}, H, data)
+    return samp, timestmap, recno
+end
 
 function count_blocks(file::IOStream)
     fsize = stat(file).size
