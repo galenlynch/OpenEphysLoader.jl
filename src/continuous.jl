@@ -115,10 +115,6 @@ function getindex(A::OEArray, i::Integer)
     return convert_data(A, header, data)
 end
 
-function getindex(A::JointArray, i::Integer)
-    return A.samples[i], A.times[i], A.recnos[i]
-end
-
 function prepare_block(A::OEArray, i::Integer)
     newblock, rel_idx = relative_block_index(A.blockno, i)
     if newblock
