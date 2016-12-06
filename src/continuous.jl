@@ -19,29 +19,32 @@ const CONT_REC_BLOCK_SIZE = CONT_REC_HEAD_SIZE + CONT_REC_BODY_SIZE + CONT_REC_T
 typealias IntOut Union{Array{Int},  Vector{Vector{Int}}}
 typealias ConcreteHeader OriginalHeader{UTF8String, Int, Float64}
 
-type BlockHeader
+abstract BlockBuffer
+
+type BlockHeader <: BlockBuffer
     timestamp::CONT_REC_TIME_BITTYPE
     nsample::CONT_REC_N_SAMP_BITTYPE
     recordingnumber::CONT_REC_REC_NO_BITTYPE
 end
 BlockHeader() = BlockHeader(0, 0, 0)
 
-type DataBlock
+type DataBlock <: BlockBuffer
     head::BlockHeader
     body::Vector{UInt8}
+    data::Vector{CONT_REC_SAMP_BITTYPE}
     tail::Vector{UInt8}
 end
 function DataBlock()
     head = BlockHeader()
     body = Vector{UInt8}(CONT_REC_BODY_SIZE)
+    data = Vector{CONT_REC_SAMP_BITTYPE}(CONT_REC_N_SAMP)
     tail =  Vector{UInt8}(CONT_REC_TAIL_SIZE)
-    DataBlock(head, body, tail)
+    DataBlock(head, body, data, tail)
 end
 
-immutable ContinuousFile{T<: Integer, S<:Integer, H<:OriginalHeader}
+immutable ContinuousFile{B<:BlockBuffer, T<:Integer, S<:Integer, H<:OriginalHeader}
     io::IOStream
-    block::DataBlock
-    blockdata::Vector{CONT_REC_SAMP_BITTYPE}
+    block::B
     blockno::UInt8
     nsample::T
     nblock::S
@@ -50,14 +53,13 @@ immutable ContinuousFile{T<: Integer, S<:Integer, H<:OriginalHeader}
 end
 function ContinuousFile(io::IOStream, check::Bool = true)
     block = DataBlock()
-    blockdata = Vector{CONT_REC_SAMP_BITTYPE}(CONT_REC_N_SAMP)
     fileheader = OriginalHeader(io) # Read header
     nblock = count_blocks(io)
     nsample = count_data(nblock)
     if check
         check_filesize(io)
     end
-    return ContinuousFile(io, block, blockdata, 0, nsample, nblock, fileheader, check)
+    return ContinuousFile(io, block, 0, nsample, nblock, fileheader, check)
 end
 ContinuousFile(file_name::AbstractString; check::Bool = true) =
     ContinuousFile(open(file_name, "r"), check)
@@ -113,20 +115,19 @@ linearindexing{T<:OEArray}(::Type{T}) = Base.LinearFast()
 setindex!(::OEArray, ::Int) = throw(ReadOnlyMemoryError())
 
 function getindex{T, C}(A::SampleArray{T, C}, i::Integer)
-    start_idx = block_start_index(A.contfile.blockno)
-    if !index_in_block(start_idx, i)
+    newblock, rel_idx = prepare_block(A.contfile, i)
+    if newblock
         read_into!(A.contfile.io, A.contfile.block, A.contfile.blockdata, A.contfile.check)
     end
-    rel_idx = i - start_idx + 1
-    return A.contfile.blockdata[rel_idx]
+    return convert_sample(T, A.contfile.blockdata[rel_idx], A.contfile.header.bitvolts)
 end
 
 function getindex{T, C}(A::TimeArray{T, C}, i::Integer)
-    blockstartpos = block_start_pos(sampno_to_block(i))
-    byteidxes = blockstartpos:(blockstartpos + sizeof(CONT_REC_TIME_BITTYPE) - 1)
-    sampleno_filebytes = A.contfile.filemmap[byteidxes]
-    block_sampleno = reinterpret(CONT_REC_TIME_BITTYPE, sampleno_filebytes)[1]
-    sampleno = block_sampleno + (i - 1) % CONT_REC_N_SAMP
+    newblock, rel_idx = prepare_block(A.contfile, i)
+    if newblock
+        read_into!(A.contfile.io, A.contfile.block.head) # block is now in inconsistent state!
+    end
+    sampleno = A.contfile.block.head.timestamp + rel_idx - 1
     return convert_timepoint(T, sampleno, A.contfile.header.samplerate)
 end
 
@@ -145,15 +146,29 @@ end
 function index_in_block(block_start_idx::Integer, i::Integer)
     return block_start_idx > 0 && block_start_idx <= i <= block_start_idx + CONT_REC_N_SAMP - 1
 end
+
+function 
+function prepare_block(contfile::ContinuousFile, i::Integer)
+    start_idx = block_start_index(contfile.blockno)
+    newblock = !index_in_block(start_idx, i)
+    if newblock
+        blockpos = sampno_to_block_pos(i)
+        if blockpos != position(contfile.io)
+            seek(contfile.io, blockpos)
+        end
+    end
+    rel_idx = i - start_idx + 1
+    return newblock, rel_idx
+end
 ### location functions ###
 # position is zero-based
 sampno_to_block_pos(sampno::Integer) = block_start_pos(sampno_to_block(sampno))
 
 sampno_to_block(sampno::Integer) = div(sampno - 1, CONT_REC_N_SAMP) + 1
 
-block_start_pos(block_no::Integer) = (block_no - 1) * CONT_REC_BLOCK_SIZE + CONT_REC_HEAD_SIZE
+block_start_pos(blockno::Integer) = (blockno - 1) * CONT_REC_BLOCK_SIZE + HEADER_N_BYTES
 
-block_start_index(block_no::Integer) = (block_no - 1) * CONT_REC_N_SAMP + 1
+block_start_index(blockno::Integer) = (blockno - 1) * CONT_REC_N_SAMP + 1
 
 ### Verification functions ###
 function check_filesize(file::IOStream)
@@ -161,13 +176,7 @@ function check_filesize(file::IOStream)
 end
 
 ### File access and conversion ###
-function read_into!(io::IOStream, block::DataBlock, blockdata::Vector{CONT_REC_SAMP_BITTYPE},
-               check::Bool)
-    goodread = read_into!(io, block, check)
-    goodread && convert_block!(block, blockdata)
-    return goodread
-end
-function read_into!(io::IOStream, block::DataBlock, check::Bool = false)
+function read_into!(io::IOStream, block::DataBlock, check::Bool = true)
     goodread = read_into!(io, block.head)
     goodread || return goodread
     ## Read the body
@@ -179,14 +188,15 @@ function read_into!(io::IOStream, block::DataBlock, check::Bool = false)
     else
         skip(io, CONT_REC_TAIL_SIZE)
     end
+    goodread && convert_block!(block)
     return goodread
 end
-function read_into!(io::IOStream, head::BlockHeader)
+function read_into!(io::IOStream, head::BlockHeader, check::Bool = true)
     goodread = true
     try
         head.timestamp = read(io, CONT_REC_TIME_BITTYPE)
         head.nsample = read(io, CONT_REC_N_SAMP_BITTYPE)
-        if head.nsample != CONT_REC_N_SAMP
+        if check && head.nsample != CONT_REC_N_SAMP
             goodread = false
         end
         head.recordingnumber = read(io, CONT_REC_REC_NO_BITTYPE)
@@ -200,13 +210,13 @@ function read_into!(io::IOStream, head::BlockHeader)
     return goodread
 end
 
-function convert_block!(block::DataBlock, blockdata::Vector{CONT_REC_SAMP_BITTYPE})
+function convert_block!(block::DataBlock)
     contents = reinterpret(CONT_REC_SAMP_BITTYPE, block.body) # readbuff is UInt8
     # Correct for big endianness of this data block
     for idx in eachindex(contents)
         @inbounds contents[idx] = ntoh(contents[idx])
     end
-    copy!(contents, blockdata)
+    copy!(contents, block.data)
 end
 
 function verify_tail!(io::IOStream, tail::Vector{UInt8})
