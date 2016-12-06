@@ -49,7 +49,6 @@ immutable ContinuousFile{T<: Integer, S<:Integer, H<:OriginalHeader}
     check::Bool
 end
 function ContinuousFile(io::IOStream, check::Bool = true)
-    datalen = stat(io).size - HEADER_N_BYTES
     block = DataBlock()
     blockdata = Vector{CONT_REC_SAMP_BITTYPE}(CONT_REC_N_SAMP)
     fileheader = OriginalHeader(io) # Read header
