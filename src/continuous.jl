@@ -17,7 +17,7 @@ const CONT_REC_BLOCK_SIZE = CONT_REC_HEAD_SIZE + CONT_REC_BODY_SIZE + CONT_REC_T
 
 ### Types ###
 typealias IntOut Union{Array{Int},  Vector{Vector{Int}}}
-typealias ConcreteHeader OriginalHeader{UTF8String, Int, Float64}
+typealias ConcreteHeader OriginalHeader{String, Int, Float64}
 
 abstract BlockBuffer
 

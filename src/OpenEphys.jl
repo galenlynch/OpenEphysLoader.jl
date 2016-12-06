@@ -1,11 +1,6 @@
 module OpenEphys
 # Module to interact with Open Ephys files
-
-if VERSION < v"0.4-"
-    using Dates
-end
-
-import Base: show, showerror, showcompact, ==
+import Base: size, linearindexing, getindex, setindex!, length
 
 export
     # types

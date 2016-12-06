@@ -1,6 +1,5 @@
 # Type system for original files and header constants
 const HEADER_BITTYPE = Char
-const HEADER_STRING_ENCODING = UTF8String
 const HEADER_N_BYTES = 1024
 const HEADER_DATEFORMAT = Dates.DateFormat("d-u-y HHMMSS")
 
@@ -10,13 +9,13 @@ type MATstr <: MATLABdata end
 type MATint <: MATLABdata end
 type MATfloat <: MATLABdata end
 
-const HEADER_TYPE_MAP = ((MATstr, UTF8String), #Format
+const HEADER_TYPE_MAP = ((MATstr, String), #Format
                         (MATfloat, VersionNumber), #Version
                         (MATint, Int), #headerbytes
-                        (MATstr, UTF8String), #description
+                        (MATstr, String), #description
                         (MATstr, DateTime), #created
-                        (MATstr, UTF8String), #channel
-                        (MATstr, UTF8String), #channeltype
+                        (MATstr, String), #channel
+                        (MATstr, String), #channeltype
                         (MATint, Int), #samplerate
                         (MATint, Int), #blocklength
                         (MATint, Int), #buffersize
@@ -42,20 +41,18 @@ function OriginalHeader(io::IOStream)
     # Read the header from the IOStream and separate on semicolons
     head = readbytes(io, HEADER_N_BYTES)
     @assert length(head) == HEADER_N_BYTES "Unable to read all of the header"
-    headstr = strencoder(HEADER_STRING_ENCODING, head)
+    headstr = transcode(String, head)
     substrs =  split(headstr, ';', keep = false)
     resize!(substrs, N_HEADER_LINE)
     OriginalHeader(
         map(parseline, zip(HEADER_MATTYPES, HEADER_TARGET_TYPES, substrs))...
-    )::OriginalHeader{UTF8String, Int, Float64}
+    )::OriginalHeader{String, Int, Float64}
 end
-strencoder(::Type{ASCIIString}, strbytes::AbstractArray) = ascii(strbytes)::ASCIIString
-strencoder(::Type{UTF8String}, strbytes::AbstractArray) = utf8(strbytes)::UTF8String
 parseline{T, M<:MATLABdata}(::Type{M}, ::Type{T}, str::AbstractString) = parseto(T, matparse(M, str))::T
 parseline(tup::Tuple) = parseline(tup...)
 parseto{T<:Number}(::Type{T}, str::AbstractString) = parse(str)::T
 parseto(::Type{DateTime}, str::AbstractString) = DateTime(str, HEADER_DATEFORMAT)
-parseto(::Type{UTF8String}, str::AbstractString) = utf8(str)::UTF8String
+parseto(::Type{String}, str::AbstractString) = transcode(String, str)
 function matparse{T<:MATLABdata, S<:AbstractString}(::Type{T}, str::S)
     regex = rx(T)
     goodread = false
@@ -74,16 +71,8 @@ end
 rx(::Type{MATstr}) = r" = '(.*)'$"
 rx(::Type{MATint}) = r" = (\d*)$"
 rx(::Type{MATfloat}) = r" = ([-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?)$"
-if VERSION < v"0.4-"
-    parseto(::Type{VersionNumber}, str::AbstractString) = VersionNumber(parseversion(str)...)
-    parseto{T<:AbstractString}(::Type{T}, str::T) = str
-    parseto(::Type{ASCIIString}, str::AbstractString) = ascii(str)::ASCIIString
-    parseversion(str::AbstractString) = map(parse, split(str, '.', keep = false))
-else
-    parseto(::Type{VersionNumber}, str::AbstractString) = VersionNumber(str)
-    parseto{T<:AbstractString}(::Type{T}, str::T) = str
-    parseto{T<:AbstractString}(::Type{T}, str::AbstractString) = T(str)
-end
+parseto(::Type{VersionNumber}, str::AbstractString) = VersionNumber(str)
+parseto{T<:AbstractString}(::Type{T}, str::T) = str
 
 function show(io::IO, a::OriginalHeader)
     fields = fieldnames(a)
