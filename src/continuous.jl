@@ -114,10 +114,7 @@ setindex!(::OEArray, ::Int) = throw(ReadOnlyMemoryError())
 
 function getindex{T, C}(A::SampleArray{T, C}, i::Integer)
     start_idx = block_start_index(A.contfile.blockno)
-    if A.contfile.blockno <= 0 ||
-        i < start_idx ||
-        i > start_idx + CONT_REC_N_SAMP - 1
-        ## Sample is not in current block
+    if !index_in_block(start_idx, i)
         read_into!(A.contfile.io, A.contfile.block, A.contfile.blockdata, A.contfile.check)
     end
     rel_idx = i - start_idx + 1
