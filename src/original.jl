@@ -1,9 +1,7 @@
 # Type system for original files and header constants
-const HEADER_BITTYPE = Char
 const HEADER_N_BYTES = 1024
 const HEADER_DATEFORMAT = Dates.DateFormat("d-u-y HHMMSS")
 
-abstract OriginalData <: OEData
 abstract MATLABdata
 type MATstr <: MATLABdata end
 type MATint <: MATLABdata end
@@ -40,7 +38,7 @@ end
 function OriginalHeader(io::IOStream)
     # Read the header from the IOStream and separate on semicolons
     head = readbytes(io, HEADER_N_BYTES)
-    @assert length(head) == HEADER_N_BYTES "Unable to read all of the header"
+    @assert length(head) == HEADER_N_BYTES "Header not complete"
     headstr = transcode(String, head)
     substrs =  split(headstr, ';', keep = false)
     resize!(substrs, N_HEADER_LINE)
@@ -48,12 +46,17 @@ function OriginalHeader(io::IOStream)
         map(parseline, zip(HEADER_MATTYPES, HEADER_TARGET_TYPES, substrs))...
     )::OriginalHeader{String, Int, Float64}
 end
-parseline{T, M<:MATLABdata}(::Type{M}, ::Type{T}, str::AbstractString) = parseto(T, matparse(M, str))::T
+
+parseline{T, M<:MATLABdata}(::Type{M}, ::Type{T}, str::AbstractString) = parseto(T, matread(M, str))::T
 parseline(tup::Tuple) = parseline(tup...)
+
 parseto{T<:Number}(::Type{T}, str::AbstractString) = parse(str)::T
 parseto(::Type{DateTime}, str::AbstractString) = DateTime(str, HEADER_DATEFORMAT)
+parseto(::Type{VersionNumber}, str::AbstractString) = VersionNumber(str)
 parseto(::Type{String}, str::AbstractString) = transcode(String, str)
-function matparse{T<:MATLABdata, S<:AbstractString}(::Type{T}, str::S)
+parseto{T<:AbstractString}(::Type{T}, str::T) = str
+
+function matread{T<:MATLABdata, S<:AbstractString}(::Type{T}, str::S)
     regex = rx(T)
     goodread = false
     if ismatch(regex, str)
@@ -62,17 +65,13 @@ function matparse{T<:MATLABdata, S<:AbstractString}(::Type{T}, str::S)
             goodread = true
         end
     end
-    if goodread
-        return m.captures[1]::S
-    else
-        throw(CorruptionError())
-    end
+    @assert goodread "File is corrupt"
+    return m.captures[1]::S
 end
+
 rx(::Type{MATstr}) = r" = '(.*)'$"
 rx(::Type{MATint}) = r" = (\d*)$"
 rx(::Type{MATfloat}) = r" = ([-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?)$"
-parseto(::Type{VersionNumber}, str::AbstractString) = VersionNumber(str)
-parseto{T<:AbstractString}(::Type{T}, str::T) = str
 
 function show(io::IO, a::OriginalHeader)
     fields = fieldnames(a)
