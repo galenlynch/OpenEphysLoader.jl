@@ -49,11 +49,10 @@ immutable ContinuousFile{T<:Integer, S<:Integer, H<:OriginalHeader}
     header::H
 end
 function ContinuousFile(io::IOStream, check::Bool = true)
-    block = DataBlock()
-    fileheader = OriginalHeader(io) # Read header
+    header = OriginalHeader(io) # Read header
     nblock = count_blocks(io)
     nsample = count_data(nblock)
-    return ContinuousFile(io, block, 0, nsample, nblock, fileheader, check)
+    return ContinuousFile(io, nsample, nblock, header)
 end
 ContinuousFile(file_name::AbstractString; check::Bool = true) =
     ContinuousFile(open(file_name, "r"), check)
