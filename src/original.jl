@@ -37,7 +37,7 @@ immutable OriginalHeader{T<:AbstractString, S<:Integer, R<:Real}
 end
 function OriginalHeader(io::IOStream)
     # Read the header from the IOStream and separate on semicolons
-    head = readbytes(io, HEADER_N_BYTES)
+    head = read(io, HEADER_N_BYTES)
     @assert length(head) == HEADER_N_BYTES "Header not complete"
     headstr = transcode(String, head)
     substrs =  split(headstr, ';', keep = false)
