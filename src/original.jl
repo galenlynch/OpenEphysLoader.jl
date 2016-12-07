@@ -53,7 +53,7 @@ parseline(tup::Tuple) = parseline(tup...)
 parseto{T<:Number}(::Type{T}, str::AbstractString) = parse(str)::T
 parseto(::Type{DateTime}, str::AbstractString) = DateTime(str, HEADER_DATEFORMAT)
 parseto(::Type{VersionNumber}, str::AbstractString) = VersionNumber(str)
-parseto(::Type{String}, str::AbstractString) = transcode(String, str)
+parseto(::Type{String}, str::AbstractString) = String(str)
 parseto{T<:AbstractString}(::Type{T}, str::T) = str
 
 function matread{T<:MATLABdata, S<:AbstractString}(::Type{T}, str::S)
@@ -66,7 +66,7 @@ function matread{T<:MATLABdata, S<:AbstractString}(::Type{T}, str::S)
         end
     end
     @assert goodread "File is corrupt"
-    return m.captures[1]::S
+    return S(m.captures[1])
 end
 
 rx(::Type{MATstr}) = r" = '(.*)'$"
@@ -76,7 +76,7 @@ rx(::Type{MATfloat}) = r" = ([-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?)$"
 function show(io::IO, a::OriginalHeader)
     fields = fieldnames(a)
     for field in fields
-        println(io, "$field: $(a.(field))")
+        println(io, "$field: $(getfield(a, field))")
     end
 end
 showcompact(io::IO, header::OriginalHeader) = show(io, "channel: $(header.channel)")
