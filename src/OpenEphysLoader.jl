@@ -9,10 +9,9 @@ export
     SampleArray,
     TimeArray,
     RecNoArry,
-    JointArray,
+    JointArray
 
 ## source files
-
 include("common.jl")
 include("original.jl")
 include("continuous.jl")
