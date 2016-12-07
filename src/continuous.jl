@@ -110,8 +110,7 @@ setindex!(::OEArray, ::Int) = throw(ReadOnlyMemoryError())
 function getindex(A::OEArray, i::Integer)
     rel_idx = prepare_block(A, i)
     data = block_data(A, rel_idx)
-    header = get_block_header(A.block)
-    return convert_data(A, header, data)
+    return convert_data(A, A.contfile.header, data)
 end
 
 function prepare_block(A::OEArray, i::Integer)
@@ -217,31 +216,30 @@ function block_data(A::JointArray, rel_idx::Integer)
     return sample, timestamp, recno
 end
 
-get_block_header(H::BlockHeader) = H
-get_block_header(D::DataBlock) = D.head
+convert_data{A<:OEArray}(::A, H::OriginalHeader, data::Integer) = convert_data(A, H, data)
 function convert_data{T<:AbstractFloat, C, B}(::Type{SampleArray{T, C, B}},
-                                              H::BlockHeader, data::Integer)
+                                              H::OriginalHeader, data::Integer)
     return convert(T, data * H.bitvolts)
 end
 function convert_data{T<:Integer, C, B}(::Type{SampleArray{T, C, B}},
-                                              ::BlockHeader, data::Integer)
+                                              ::OriginalHeader, data::Integer)
     return convert(T, data)
 end
 function convert_data{T<:AbstractFloat, C, B}(::Type{TimeArray{T, C, B}},
-                                              H::BlockHeader, data::Integer)
+                                              H::OriginalHeader, data::Integer)
     return convert(T, (data - 1) / H.samplerate) # First sample is at time zero
 end
 function convert_data{T<:Integer, C, B}(::Type{TimeArray{T, C, B}},
-                                              H::BlockHeader, data::Integer)
+                                              H::OriginalHeader, data::Integer)
     return convert(T, data)
 end
-function convert_data{T, C, B}(::Type{RecNoArray{T, C, B}}, ::BlockHeader, data::Integer)
+function convert_data{T, C, B}(::Type{RecNoArray{T, C, B}}, ::OriginalHeader, data::Integer)
     return convert(T, data)
 end
-function convert_data{S,T,R,C}(::Type{JointArray{S,T,R,C}}, H::BlockHeader, data::Tuple)
+function convert_data{S,T,R,C}(::Type{JointArray{S,T,R,C}}, H::OriginalHeader, data::Tuple)
     samp = convert_data(SampleArray{S, C, DataBlock}, H, data[1])
-    timestamp = convert_data(TimeArray{T, C, BlockHeader}, H, data)
-    recno = convert_data(RecNoArray{R, C, BlockHeader}, H, data)
+    timestamp = convert_data(TimeArray{T, C, OriginalHeader}, H, data)
+    recno = convert_data(RecNoArray{R, C, OriginalHeader}, H, data)
     return samp, timestmap, recno
 end
 
