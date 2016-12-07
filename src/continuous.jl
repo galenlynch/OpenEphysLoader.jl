@@ -384,9 +384,9 @@ end
 function show(io::IO, d::ContinuousData)
     for fld in (:data, :timestamps, :recordingnumbers)
         println(io, "$fld:")
-        Base.showlimited(io, d.(fld))
+        Base.show(io, d.(fld))
         print(io, '\n')
     end
     println(io, "fileheaders:")
-    Base.showlimited(io, d.fileheaders)
+    Base.show(io, d.fileheaders)
 end
