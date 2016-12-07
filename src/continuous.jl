@@ -61,9 +61,11 @@ abstract OEArray{T, C<:ContinuousFile} <: AbstractArray{T, 1}
 sampletype = Real
 timetype = Real
 rectype = Integer
+jointtype = Tuple{sampletype, timetype, rectype}
 arraytypes = ((:SampleArray, sampletype, DataBlock),
               (:TimeArray, timetype, BlockHeader),
-              (:RecNoArray, rectype, BlockHeader))
+              (:RecNoArray, rectype, BlockHeader),
+              (:JointArray, jointtype, DataBlock))
 for (typename, typeparam, buffertype) = arraytypes
     @eval begin
         type $(typename){T<:$(typeparam), C<:ContinuousFile} <:
@@ -83,21 +85,6 @@ for (typename, typeparam, buffertype) = arraytypes
     end
 end
 
-type JointArray{T<:Tuple{sampletype, timetype, rectype},
-                C<:ContinuousFile} <: OEArray{T, C}
-    contfile::C
-    block::DataBlock
-    blockno::UInt
-    check::Bool
-end
-function JointArray{T<:Tuple,C<:ContinuousFile}(::Type{T}, contfile::C, check::Bool = true)
-    block = DataBlock()
-    blockno = 0
-    if check
-        check_filesize(contfile.io)
-    end
-    return JointArray{T,C}(contfile, block, blockno, check)
-end
 function JointArray{C<:ContinuousFile}(contfile::C, check::Bool=true)
     return JointArray(Tuple{Float64, Float64, Int}, contfile, check)
 end
