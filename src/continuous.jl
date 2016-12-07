@@ -116,18 +116,15 @@ end
 
 function prepare_block(A::OEArray, i::Integer)
     blockno = sampno_to_block(i)
-    println("Sample ", i, " is in block ", blockno)
     if blockno != A.blockno
-        println("Current block is ", A.blockno, ", seeking to block ", blockno)
         seek_to_block(A.contfile.io, blockno)
-        read_into!(A.contfile.io, A.block, A.check)
+        @assert read_into!(A.contfile.io, A.block, A.check) "Could not read block"
         A.blockno = blockno
     end
 end
 
 function seek_to_block(io::IOStream, blockno::Integer)
     blockpos = block_start_pos(blockno)
-    println("Moving to postion ", blockpos)
     if blockpos != position(io)
         seek(io, blockpos)
     end
@@ -166,15 +163,15 @@ function read_into!(io::IOStream, block::DataBlock, check::Bool = true)
     goodread && convert_block!(block)
     return goodread
 end
-function read_into!(io::IOStream, head::BlockHeader, check::Bool = true)
+function read_into!(io::IOStream, head::BlockHeader)
     goodread = true
     try
         head.timestamp = read(io, CONT_REC_TIME_BITTYPE)
         head.nsample = read(io, CONT_REC_N_SAMP_BITTYPE)
-        if check && head.nsample != CONT_REC_N_SAMP
-            goodread = false
+        goodread = head.nsample == CONT_REC_N_SAMP
+        if goodread
+            head.recordingnumber = read(io, CONT_REC_REC_NO_BITTYPE)
         end
-        head.recordingnumber = read(io, CONT_REC_REC_NO_BITTYPE)
     catch exception
         if isa(exception, EOFError)
             goodread = false
@@ -184,6 +181,7 @@ function read_into!(io::IOStream, head::BlockHeader, check::Bool = true)
     end
     return goodread
 end
+read_into!(io::IOStream, head::BlockHeader, ::Bool) = read_into!(io, head)
 
 function convert_block!(block::DataBlock)
     contents = reinterpret(CONT_REC_SAMP_BITTYPE, block.body) # readbuff is UInt8
@@ -191,7 +189,7 @@ function convert_block!(block::DataBlock)
     for idx in eachindex(contents)
         @inbounds contents[idx] = ntoh(contents[idx])
     end
-    copy!(contents, block.data)
+    copy!(block.data, contents)
 end
 
 function verify_tail!(io::IOStream, tail::Vector{UInt8})
