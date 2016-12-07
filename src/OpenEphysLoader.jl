@@ -8,7 +8,7 @@ export
     ContinuousFile,
     SampleArray,
     TimeArray,
-    RecNoArry,
+    RecNoArray,
     JointArray
 
 ## source files

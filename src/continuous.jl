@@ -57,16 +57,19 @@ end
 ContinuousFile(file_name::AbstractString; check::Bool = true) =
     ContinuousFile(open(file_name, "r"), check)
 
-abstract OEArray{T, C<:ContinuousFile, B<:BlockBuffer} <: AbstractArray{T, 1}
-arraytypes = ((:SampleArray, Real, DataBlock),
-              (:TimeArray, Real, BlockHeader),
-              (:RecNoArray, Integer, BlockHeader))
+abstract OEArray{T, C<:ContinuousFile} <: AbstractArray{T, 1}
+sampletype = Real
+timetype = Real
+rectype = Integer
+arraytypes = ((:SampleArray, sampletype, DataBlock),
+              (:TimeArray, timetype, BlockHeader),
+              (:RecNoArray, rectype, BlockHeader))
 for (typename, typeparam, buffertype) = arraytypes
     @eval begin
-        type $(typename){T<:$(typeparam), C<:ContinuousFile, B<:BlockBuffer} <:
-            OEArray{T, C, B}
+        type $(typename){T<:$(typeparam), C<:ContinuousFile} <:
+            OEArray{T, C}
             contfile::C
-            block::B
+            block::$(buffertype)
             blockno::UInt
             check::Bool
         end
@@ -75,27 +78,28 @@ for (typename, typeparam, buffertype) = arraytypes
                 check_filesize(contfile.io)
             end
             block = $(buffertype)()
-            return $(typename){T, C, $(buffertype)}(contfile, block, 0, check)
+            return $(typename){T, C}(contfile, block, 0, check)
         end
     end
 end
 
-type JointArray{S<:arraytypes[1][2],
-                     T<:arraytypes[2][2],
-                     R<:arraytypes[3][2],
-                     C<:ContinuousFile} <: OEArray{Tuple{S,T,R}, C}
+type JointArray{T<:Tuple{sampletype, timetype, rectype},
+                C<:ContinuousFile} <: OEArray{T, C}
     contfile::C
     block::DataBlock
     blockno::UInt
     check::Bool
 end
-function JointArray(contfile::ContinuousFile, check::Bool = true)
+function JointArray{T<:Tuple,C<:ContinuousFile}(::Type{T}, contfile::C, check::Bool = true)
     block = DataBlock()
     blockno = 0
     if check
         check_filesize(contfile.io)
     end
-    return JointArray(contfile, block, blockno, check)
+    return JointArray{T,C}(contfile, block, blockno, check)
+end
+function JointArray{C<:ContinuousFile}(contfile::C, check::Bool=true)
+    return JointArray(Tuple{Float64, Float64, Int}, contfile, check)
 end
 
 ### Array interface ###
@@ -209,31 +213,32 @@ function block_data(A::JointArray, rel_idx::Integer)
     return sample, timestamp, recno
 end
 
-convert_data{A<:OEArray}(::A, H::OriginalHeader, data::Integer) = convert_data(A, H, data)
-function convert_data{T<:AbstractFloat, C, B}(::Type{SampleArray{T, C, B}},
+convert_data{A<:OEArray}(::A, H::OriginalHeader, data) = convert_data(A, H, data)
+function convert_data{T<:AbstractFloat, C}(::Type{SampleArray{T, C}},
                                               H::OriginalHeader, data::Integer)
     return convert(T, data * H.bitvolts)
 end
-function convert_data{T<:Integer, C, B}(::Type{SampleArray{T, C, B}},
+function convert_data{T<:Integer, C}(::Type{SampleArray{T, C}},
                                               ::OriginalHeader, data::Integer)
     return convert(T, data)
 end
-function convert_data{T<:AbstractFloat, C, B}(::Type{TimeArray{T, C, B}},
+function convert_data{T<:AbstractFloat, C}(::Type{TimeArray{T, C}},
                                               H::OriginalHeader, data::Integer)
     return convert(T, (data - 1) / H.samplerate) # First sample is at time zero
 end
-function convert_data{T<:Integer, C, B}(::Type{TimeArray{T, C, B}},
+function convert_data{T<:Integer, C}(::Type{TimeArray{T, C}},
                                               H::OriginalHeader, data::Integer)
     return convert(T, data)
 end
-function convert_data{T, C, B}(::Type{RecNoArray{T, C, B}}, ::OriginalHeader, data::Integer)
+function convert_data{T, C}(::Type{RecNoArray{T, C}}, ::OriginalHeader, data::Integer)
     return convert(T, data)
 end
-function convert_data{S,T,R,C}(::Type{JointArray{S,T,R,C}}, H::OriginalHeader, data::Tuple)
-    samp = convert_data(SampleArray{S, C, DataBlock}, H, data[1])
-    timestamp = convert_data(TimeArray{T, C, OriginalHeader}, H, data)
-    recno = convert_data(RecNoArray{R, C, OriginalHeader}, H, data)
-    return samp, timestmap, recno
+function convert_data{S<:sampletype,T<:timetype,R<:rectype,C}(
+    ::Type{JointArray{Tuple{S,T,R},C}}, H::OriginalHeader, data::Tuple)
+    samp = convert_data(SampleArray{S, C}, H, data[1])
+    timestamp = convert_data(TimeArray{T, C}, H, data[2])
+    recno = convert_data(RecNoArray{R, C}, H, data[3])
+    return samp, timestamp, recno
 end
 
 function count_blocks(file::IOStream)
