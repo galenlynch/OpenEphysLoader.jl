@@ -63,7 +63,7 @@ arraytypes = ((:SampleArray, Real, DataBlock),
               (:RecNoArray, Integer, BlockHeader))
 for (typename, typeparam, buffertype) = arraytypes
     @eval begin
-        immutable $(typename){T<:$(typeparam), C<:ContinuousFile, B<:BlockBuffer} <:
+        type $(typename){T<:$(typeparam), C<:ContinuousFile, B<:BlockBuffer} <:
             OEArray{T, C, B}
             contfile::C
             block::B
@@ -80,7 +80,7 @@ for (typename, typeparam, buffertype) = arraytypes
     end
 end
 
-immutable JointArray{S<:arraytypes[1][2],
+type JointArray{S<:arraytypes[1][2],
                      T<:arraytypes[2][2],
                      R<:arraytypes[3][2],
                      C<:ContinuousFile} <: OEArray{Tuple{S,T,R}, C}
@@ -108,29 +108,26 @@ linearindexing{T<:OEArray}(::Type{T}) = Base.LinearFast()
 setindex!(::OEArray, ::Int) = throw(ReadOnlyMemoryError())
 
 function getindex(A::OEArray, i::Integer)
-    rel_idx = prepare_block(A, i)
-    data = block_data(A, rel_idx)
+    prepare_block(A, i)
+    relidx = sampno_to_offset(i)
+    data = block_data(A, relidx)
     return convert_data(A, A.contfile.header, data)
 end
 
 function prepare_block(A::OEArray, i::Integer)
-    newblock, rel_idx = relative_block_index(A.blockno, i)
-    if newblock
-        seek_to_containing_block(A.contfile.io, i)
+    blockno = sampno_to_block(i)
+    println("Sample ", i, " is in block ", blockno)
+    if blockno != A.blockno
+        println("Current block is ", A.blockno, ", seeking to block ", blockno)
+        seek_to_block(A.contfile.io, blockno)
         read_into!(A.contfile.io, A.block, A.check)
+        A.blockno = blockno
     end
-    return rel_idx
 end
 
-function relative_block_index(blockno::Integer, i::Integer)
-    start_idx = block_start_index(blockno)
-    newblock = !index_in_block(start_idx, i)
-    rel_idx = i - start_idx + 1
-    return newblock, rel_idx
-end
-
-function seek_to_containing_block(io::IOStream, i::Integer)
-    blockpos = sampno_to_block_pos(i)
+function seek_to_block(io::IOStream, blockno::Integer)
+    blockpos = block_start_pos(blockno)
+    println("Moving to postion ", blockpos)
     if blockpos != position(io)
         seek(io, blockpos)
     end
@@ -142,13 +139,11 @@ end
 
 ### location functions ###
 # position is zero-based
-sampno_to_block_pos(sampno::Integer) = block_start_pos(sampno_to_block(sampno))
+sampno_to_block(sampno::Integer) = fld(sampno - 1, CONT_REC_N_SAMP) + 1
 
-sampno_to_block(sampno::Integer) = div(sampno - 1, CONT_REC_N_SAMP) + 1
+sampno_to_offset(sampno::Integer) = mod(sampno - 1, CONT_REC_N_SAMP) + 1
 
 block_start_pos(blockno::Integer) = (blockno - 1) * CONT_REC_BLOCK_SIZE + HEADER_N_BYTES
-
-block_start_index(blockno::Integer) = (blockno - 1) * CONT_REC_N_SAMP + 1
 
 ### Verification functions ###
 function check_filesize(file::IOStream)
