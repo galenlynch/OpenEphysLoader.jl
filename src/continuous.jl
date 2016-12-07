@@ -1,5 +1,4 @@
-# code for loading .continuous files
-
+### code for loading .continuous files
 ### Constants ###
 const CONT_REC_TIME_BITTYPE = Int64
 const CONT_REC_N_SAMP = 1024
@@ -16,9 +15,6 @@ const CONT_REC_TAIL_SIZE = sizeof(CONT_REC_END_MARKER)
 const CONT_REC_BLOCK_SIZE = CONT_REC_HEAD_SIZE + CONT_REC_BODY_SIZE + CONT_REC_TAIL_SIZE
 
 ### Types ###
-typealias IntOut Union{Array{Int},  Vector{Vector{Int}}}
-typealias ConcreteHeader OriginalHeader{String, Int, Float64}
-
 abstract BlockBuffer
 
 type BlockHeader <: BlockBuffer
@@ -84,7 +80,6 @@ for (typename, typeparam, buffertype) = arraytypes
         end
     end
 end
-
 function JointArray{C<:ContinuousFile}(contfile::C, check::Bool=true)
     return JointArray(Tuple{Float64, Float64, Int}, contfile, check)
 end
@@ -102,9 +97,10 @@ function getindex(A::OEArray, i::Integer)
     prepare_block(A, i)
     relidx = sampno_to_offset(i)
     data = block_data(A, relidx)
-    return convert_data(A, A.contfile.header, data)
+    return convert_data(A, data)
 end
 
+### Array helper functions ###
 function prepare_block(A::OEArray, i::Integer)
     blockno = sampno_to_block(i)
     if blockno != A.blockno
@@ -121,22 +117,12 @@ function seek_to_block(io::IOStream, blockno::Integer)
     end
 end
 
-function index_in_block(block_start_idx::Integer, i::Integer)
-    return block_start_idx > 0 && block_start_idx <= i <= block_start_idx + CONT_REC_N_SAMP - 1
-end
-
 ### location functions ###
-# position is zero-based
 sampno_to_block(sampno::Integer) = fld(sampno - 1, CONT_REC_N_SAMP) + 1
 
 sampno_to_offset(sampno::Integer) = mod(sampno - 1, CONT_REC_N_SAMP) + 1
 
 block_start_pos(blockno::Integer) = (blockno - 1) * CONT_REC_BLOCK_SIZE + HEADER_N_BYTES
-
-### Verification functions ###
-function check_filesize(file::IOStream)
-    @assert rem(filesize(file) - HEADER_N_BYTES, CONT_REC_BLOCK_SIZE) == 0 "File not the right size"
-end
 
 ### File access and conversion ###
 function read_into!(io::IOStream, block::DataBlock, check::Bool = true)
@@ -183,13 +169,7 @@ function convert_block!(block::DataBlock)
     copy!(block.data, contents)
 end
 
-function verify_tail!(io::IOStream, tail::Vector{UInt8})
-    nbytes = readbytes!(io, tail, CONT_REC_TAIL_SIZE)
-    goodread = nbytes == CONT_REC_TAIL_SIZE && tail == CONT_REC_END_MARKER
-    return goodread
-end
-
-### Utility functions ###
+### Methods to access data in buffer ###
 block_data(A::SampleArray, rel_idx::Integer) = A.block.data[rel_idx]
 block_data(A::TimeArray, rel_idx::Integer) = A.block.timestamp + rel_idx - 1
 block_data(A::RecNoArray, ::Integer) = A.block.recordingnumber
@@ -200,7 +180,7 @@ function block_data(A::JointArray, rel_idx::Integer)
     return sample, timestamp, recno
 end
 
-convert_data{A<:OEArray}(::A, H::OriginalHeader, data) = convert_data(A, H, data)
+convert_data{A<:OEArray}(OE::A, data) = convert_data(A, OE.contfile.header, data)
 function convert_data{T<:AbstractFloat, C}(::Type{SampleArray{T, C}},
                                               H::OriginalHeader, data::Integer)
     return convert(T, data * H.bitvolts)
@@ -228,6 +208,18 @@ function convert_data{S<:sampletype,T<:timetype,R<:rectype,C}(
     return samp, timestamp, recno
 end
 
+### Verification methods ###
+function verify_tail!(io::IOStream, tail::Vector{UInt8})
+    nbytes = readbytes!(io, tail, CONT_REC_TAIL_SIZE)
+    goodread = nbytes == CONT_REC_TAIL_SIZE && tail == CONT_REC_END_MARKER
+    return goodread
+end
+
+function check_filesize(file::IOStream)
+    @assert rem(filesize(file) - HEADER_N_BYTES, CONT_REC_BLOCK_SIZE) == 0 "File not the right size"
+end
+
+### Utility methods ###
 function count_blocks(file::IOStream)
     fsize = stat(file).size
     return div(fsize - HEADER_N_BYTES, CONT_REC_BLOCK_SIZE)
