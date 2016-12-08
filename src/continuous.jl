@@ -58,8 +58,7 @@ function ContinuousFile(io::IOStream)
     nsample = count_data(nblock)
     return ContinuousFile(io, nsample, nblock, header)
 end
-ContinuousFile(file_name::AbstractString; check::Bool = true) =
-    ContinuousFile(open(file_name, "r"), check)
+ContinuousFile(file_name::AbstractString) = ContinuousFile(open(file_name, "r"))
 
 "Abstract array for file-backed open ephys data"
 abstract OEArray{T, C<:ContinuousFile} <: AbstractArray{T, 1}
