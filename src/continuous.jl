@@ -116,7 +116,7 @@ File-backed array access to OpenEphys recording numbers.
 File-backed array access to OpenEphys data. Returns a tuple of type `type`, whose
 values represent `(samplevalue, timestamp, recordingnumber)`. For a description of
 each, see `SampleArray`, `TimeArray`, and `RecNoArray`, respectively.
-"""
+""" JointArray
 ### Array interface ###
 length(A::OEArray) = A.contfile.nsample
 
