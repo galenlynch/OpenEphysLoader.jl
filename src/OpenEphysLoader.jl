@@ -13,7 +13,6 @@ export
     JointArray
 
 ## source files
-include("common.jl")
 include("original.jl")
 include("continuous.jl")
 
