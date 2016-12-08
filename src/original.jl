@@ -1,12 +1,17 @@
 # Type system for original files and header constants
-const HEADER_N_BYTES = 1024
-const HEADER_DATEFORMAT = Dates.DateFormat("d-u-y HHMMSS")
-
+# I'm using types as a enum here, consider changing this?
+"Abstract class for representing matlab code fragments"
 abstract MATLABdata
+"Type for representing Matlab strings"
 type MATstr <: MATLABdata end
+"Type for representing Matlab integers"
 type MATint <: MATLABdata end
+"type for representing Matlab floatingpoint numbers"
 type MATfloat <: MATLABdata end
 
+### Constants for parsing header ###
+const HEADER_N_BYTES = 1024
+const HEADER_DATEFORMAT = Dates.DateFormat("d-u-y HHMMSS")
 const HEADER_TYPE_MAP = ((MATstr, String), #Format
                         (MATfloat, VersionNumber), #Version
                         (MATint, Int), #headerbytes
@@ -22,19 +27,39 @@ const HEADER_MATTYPES = [x[1] for x in HEADER_TYPE_MAP]
 const HEADER_TARGET_TYPES = [x[2] for x in HEADER_TYPE_MAP]
 const N_HEADER_LINE = length(HEADER_TYPE_MAP)
 
+"""
+    OriginalHeader{T<:AbstractString, S<:Integer, R<:Real}
+Data in the header of binary OpenEphys files
+"""
 immutable OriginalHeader{T<:AbstractString, S<:Integer, R<:Real}
+    "Data format"
     format::T
+    "Version of data format"
     version::VersionNumber
+    "Number of bytes in the header"
     headerbytes::S
+    "Description of the header"
     description::T
+    "Time file created"
     created::DateTime
+    "Channel name"
     channel::T
+    "Channel type"
     channeltype::T
+    "Sample rate for file"
     samplerate::S
+    "Length of data blocks in bytes"
     blocklength::S
+    "Size of buffer in bytes"
     buffersize::S
+    "Volts/bit of ADC values"
     bitvolts::R
 end
+"""
+    OriginalHeader(io::IOStream)
+Reads the header of the open binary file `io`. Assumes that the stream
+is at the beginning of the file.
+"""
 function OriginalHeader(io::IOStream)
     # Read the header from the IOStream and separate on semicolons
     head = read(io, HEADER_N_BYTES)
@@ -47,15 +72,20 @@ function OriginalHeader(io::IOStream)
     )::OriginalHeader{String, Int, Float64}
 end
 
+"Parse a line of Matlab source code"
+function parseline end
 parseline{T, M<:MATLABdata}(::Type{M}, ::Type{T}, str::AbstractString) = parseto(T, matread(M, str))::T
 parseline(tup::Tuple) = parseline(tup...)
 
+"Convert a string to the desired type"
+function parseto end
 parseto{T<:Number}(::Type{T}, str::AbstractString) = parse(str)::T
 parseto(::Type{DateTime}, str::AbstractString) = DateTime(str, HEADER_DATEFORMAT)
 parseto(::Type{VersionNumber}, str::AbstractString) = VersionNumber(str)
 parseto(::Type{String}, str::AbstractString) = String(str)
 parseto{T<:AbstractString}(::Type{T}, str::T) = str
 
+"read a Matlab source line"
 function matread{T<:MATLABdata, S<:AbstractString}(::Type{T}, str::S)
     regex = rx(T)
     goodread = false
@@ -69,6 +99,7 @@ function matread{T<:MATLABdata, S<:AbstractString}(::Type{T}, str::S)
     return S(m.captures[1])
 end
 
+### Matlab regular expressions ###
 rx(::Type{MATstr}) = r" = '(.*)'$"
 rx(::Type{MATint}) = r" = (\d*)$"
 rx(::Type{MATfloat}) = r" = ([-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?)$"

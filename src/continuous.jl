@@ -1,4 +1,4 @@
-### code for loading .continuous files
+# code for loading .continuous files
 ### Constants ###
 const CONT_REC_TIME_BITTYPE = Int64
 const CONT_REC_N_SAMP = 1024
@@ -15,8 +15,10 @@ const CONT_REC_TAIL_SIZE = sizeof(CONT_REC_END_MARKER)
 const CONT_REC_BLOCK_SIZE = CONT_REC_HEAD_SIZE + CONT_REC_BODY_SIZE + CONT_REC_TAIL_SIZE
 
 ### Types ###
+"Type to buffer continuous file contents"
 abstract BlockBuffer
 
+"Represents the header of each data block"
 type BlockHeader <: BlockBuffer
     timestamp::CONT_REC_TIME_BITTYPE
     nsample::CONT_REC_N_SAMP_BITTYPE
@@ -24,6 +26,7 @@ type BlockHeader <: BlockBuffer
 end
 BlockHeader() = BlockHeader(0, 0, 0)
 
+"Represents the entirity of a data block"
 type DataBlock <: BlockBuffer
     head::BlockHeader
     body::Vector{UInt8}
@@ -38,10 +41,15 @@ function DataBlock()
     DataBlock(head, body, data, tail)
 end
 
+"Type for an open continuous file"
 immutable ContinuousFile{T<:Integer, S<:Integer, H<:OriginalHeader}
+    "IOStream for open continuous file"
     io::IOStream
+    "Number of samples in file"
     nsample::T
+    "Number of data blocks in file"
     nblock::S
+    "File header"
     header::H
 end
 function ContinuousFile(io::IOStream)
@@ -53,7 +61,9 @@ end
 ContinuousFile(file_name::AbstractString; check::Bool = true) =
     ContinuousFile(open(file_name, "r"), check)
 
+"Abstract array for file-backed open ephys data"
 abstract OEArray{T, C<:ContinuousFile} <: AbstractArray{T, 1}
+### Stuff for code generation ###
 sampletype = Real
 timetype = Real
 rectype = Integer
@@ -62,10 +72,10 @@ arraytypes = ((:SampleArray, sampletype, DataBlock),
               (:TimeArray, timetype, BlockHeader),
               (:RecNoArray, rectype, BlockHeader),
               (:JointArray, jointtype, DataBlock))
+### Generate array datatypes ###
 for (typename, typeparam, buffertype) = arraytypes
     @eval begin
-        type $(typename){T<:$(typeparam), C<:ContinuousFile} <:
-            OEArray{T, C}
+        type $(typename){T<:$(typeparam), C<:ContinuousFile} <: OEArray{T, C}
             contfile::C
             block::$(buffertype)
             blockno::UInt
@@ -84,6 +94,29 @@ function JointArray{C<:ContinuousFile}(contfile::C, check::Bool=true)
     return JointArray(Tuple{Float64, Float64, Int}, contfile, check)
 end
 
+const arrayargs = "(type::Type{T}, contfile::ContinuousFile, [check::Bool])"
+@doc """
+    SampleArray$arrayargs
+File-backed array acces to OpenEphys sample values. If `type` is a floating
+point type, then the sample value will be converted to voltage (in uV). Otherwise,
+the sample values will remain the raw ADC integer readings.
+""" SampleArray
+@doc """
+    TimeArray$arrayargs
+File-backed array acces to OpenEphys time stamps. If `type` is a floating
+point type, then the time stamps will be converted to seconds. Otherwise,
+the time stamp will be the sample number.
+""" TimeArray
+@doc """
+    RecNoArray$arrayargs
+File-backed array acces to OpenEphys recording numbers.
+""" RecNoArray
+@doc """
+    JointArray$arrayargs
+File-backed array access to OpenEphys data. Returns a tuple of type `type`, whose
+values represent `(samplevalue, timestamp, recordingnumber)`. For a description of
+each, see `SampleArray`, `TimeArray`, and `RecNoArray`, respectively.
+"""
 ### Array interface ###
 length(A::OEArray) = A.contfile.nsample
 
@@ -101,6 +134,7 @@ function getindex(A::OEArray, i::Integer)
 end
 
 ### Array helper functions ###
+"Load data block if necessary"
 function prepare_block(A::OEArray, i::Integer)
     blockno = sampno_to_block(i)
     if blockno != A.blockno
@@ -110,6 +144,7 @@ function prepare_block(A::OEArray, i::Integer)
     end
 end
 
+"Move io to data block"
 function seek_to_block(io::IOStream, blockno::Integer)
     blockpos = block_start_pos(blockno)
     if blockpos != position(io)
@@ -125,6 +160,7 @@ sampno_to_offset(sampno::Integer) = mod(sampno - 1, CONT_REC_N_SAMP) + 1
 block_start_pos(blockno::Integer) = (blockno - 1) * CONT_REC_BLOCK_SIZE + HEADER_N_BYTES
 
 ### File access and conversion ###
+"Read file data block into data block buffer"
 function read_into!(io::IOStream, block::DataBlock, check::Bool = true)
     goodread = read_into!(io, block.head)
     goodread || return goodread
@@ -140,6 +176,7 @@ function read_into!(io::IOStream, block::DataBlock, check::Bool = true)
     goodread && convert_block!(block)
     return goodread
 end
+"Read block header into header buffer"
 function read_into!(io::IOStream, head::BlockHeader)
     goodread = true
     try
@@ -160,6 +197,7 @@ function read_into!(io::IOStream, head::BlockHeader)
 end
 read_into!(io::IOStream, head::BlockHeader, ::Bool) = read_into!(io, head)
 
+"Convert the wacky data format in OpenEphys continuous files"
 function convert_block!(block::DataBlock)
     contents = reinterpret(CONT_REC_SAMP_BITTYPE, block.body) # readbuff is UInt8
     # Correct for big endianness of this data block
@@ -180,6 +218,7 @@ function block_data(A::JointArray, rel_idx::Integer)
     return sample, timestamp, recno
 end
 
+### Methods to convert raw values into desired ones ##
 convert_data{A<:OEArray}(OE::A, data) = convert_data(A, OE.contfile.header, data)
 function convert_data{T<:AbstractFloat, C}(::Type{SampleArray{T, C}},
                                               H::OriginalHeader, data::Integer)
