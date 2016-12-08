@@ -10,7 +10,8 @@ export
     SampleArray,
     TimeArray,
     RecNoArray,
-    JointArray
+    JointArray,
+    CorruptedException
 
 ## source files
 include("original.jl")

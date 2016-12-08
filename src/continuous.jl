@@ -138,7 +138,8 @@ function prepare_block(A::OEArray, i::Integer)
     blockno = sampno_to_block(i)
     if blockno != A.blockno
         seek_to_block(A.contfile.io, blockno)
-        @assert read_into!(A.contfile.io, A.block, A.check) "Could not read block"
+        goodread = read_into!(A.contfile.io, A.block, A.check)
+        goodread || throw(CorruptedException)
         A.blockno = blockno
     end
 end

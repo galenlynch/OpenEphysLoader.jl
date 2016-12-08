@@ -9,6 +9,8 @@ type MATint <: MATLABdata end
 "type for representing Matlab floatingpoint numbers"
 type MATfloat <: MATLABdata end
 
+type CorruptedException <: Exception end
+
 ### Constants for parsing header ###
 const HEADER_N_BYTES = 1024
 const HEADER_DATEFORMAT = Dates.DateFormat("d-u-y HHMMSS")
@@ -95,7 +97,7 @@ function matread{T<:MATLABdata, S<:AbstractString}(::Type{T}, str::S)
             goodread = true
         end
     end
-    @assert goodread "File is corrupt"
+    goodread || throw(CorruptedException())
     return S(m.captures[1])
 end
 
