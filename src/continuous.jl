@@ -44,7 +44,7 @@ immutable ContinuousFile{T<:Integer, S<:Integer, H<:OriginalHeader}
     nblock::S
     header::H
 end
-function ContinuousFile(io::IOStream, check::Bool = true)
+function ContinuousFile(io::IOStream)
     header = OriginalHeader(io) # Read header
     nblock = count_blocks(io)
     nsample = count_data(nblock)
@@ -194,7 +194,7 @@ function convert_data{T<:AbstractFloat, C}(::Type{TimeArray{T, C}},
     return convert(T, (data - 1) / H.samplerate) # First sample is at time zero
 end
 function convert_data{T<:Integer, C}(::Type{TimeArray{T, C}},
-                                              H::OriginalHeader, data::Integer)
+                                              ::OriginalHeader, data::Integer)
     return convert(T, data)
 end
 function convert_data{T, C}(::Type{RecNoArray{T, C}}, ::OriginalHeader, data::Integer)
