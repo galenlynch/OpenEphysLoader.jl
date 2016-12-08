@@ -26,7 +26,7 @@ type BlockHeader <: BlockBuffer
 end
 BlockHeader() = BlockHeader(0, 0, 0)
 
-"Represents the entirity of a data block"
+"Represents the entirety of a data block"
 type DataBlock <: BlockBuffer
     head::BlockHeader
     body::Vector{UInt8}
@@ -97,19 +97,19 @@ end
 const arrayargs = "(type::Type{T}, contfile::ContinuousFile, [check::Bool])"
 @doc """
     SampleArray$arrayargs
-File-backed array acces to OpenEphys sample values. If `type` is a floating
+File-backed array access to OpenEphys sample values. If `type` is a floating
 point type, then the sample value will be converted to voltage (in uV). Otherwise,
 the sample values will remain the raw ADC integer readings.
 """ SampleArray
 @doc """
     TimeArray$arrayargs
-File-backed array acces to OpenEphys time stamps. If `type` is a floating
+File-backed array access to OpenEphys time stamps. If `type` is a floating
 point type, then the time stamps will be converted to seconds. Otherwise,
 the time stamp will be the sample number.
 """ TimeArray
 @doc """
     RecNoArray$arrayargs
-File-backed array acces to OpenEphys recording numbers.
+File-backed array access to OpenEphys recording numbers.
 """ RecNoArray
 @doc """
     JointArray$arrayargs
