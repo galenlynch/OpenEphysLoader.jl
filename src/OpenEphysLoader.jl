@@ -1,3 +1,4 @@
+__precompile__()
 module OpenEphysLoader
 # Module to interact with Open Ephys files
 import Base: show, showcompact, size, linearindexing, getindex, setindex!, length
