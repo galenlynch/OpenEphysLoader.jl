@@ -1,21 +1,14 @@
 using OpenEphys, Base.Test
-if VERSION < v"0.4-"
-    using Dates
-end
 
 ### Helper functions ###
 function write_original_header(io::IOStream)
     local head
-    open(joinpath(dirname(@__FILE__), "data", "header.txt")) do io
-        head = readall(io)
+    open(joinpath(dirname(@__FILE__), "data", "header.txt")) do readio
+        head = readall(readio)
     end
     write(io, head)
 end
-function write_original_header(path::String)
-    open(path, "w") do io
-        write_original_header(io)
-    end
-end
+
 function verify_header(header::OriginalHeader)
     @test header.format == "Open Ephys Data Format"
     @test header.version == v"0.4"
@@ -29,7 +22,9 @@ function verify_header(header::OriginalHeader)
     @test header.buffersize == 1024
     @test_approx_eq header.bitvolts 0.195
 end
+
 ### Tests ###
+# matread
 
 # OriginalHeader constructor
 filecontext(write_original_header) do io
