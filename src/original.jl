@@ -65,8 +65,9 @@ is at the beginning of the file.
 function OriginalHeader(io::IOStream)
     # Read the header from the IOStream and separate on semicolons
     head = read(io, HEADER_N_BYTES)
-    @assert length(head) == HEADER_N_BYTES "Header not complete"
+    length(head) == HEADER_N_BYTES || throw(CorruptedException())
     headstr = transcode(String, head)
+    isvalid(headstr) || throw(CorruptedException())
     substrs =  split(headstr, ';', keep = false)
     resize!(substrs, N_HEADER_LINE)
     OriginalHeader(
@@ -91,13 +92,11 @@ parseto{T<:AbstractString}(::Type{T}, str::T) = str
 function matread{T<:MATLABdata, S<:AbstractString}(::Type{T}, str::S)
     regex = rx(T)
     goodread = false
+    local m
     if ismatch(regex, str)
         m = match(rx(T), str)
-        if !isempty(m.captures)
-            goodread = true
-        end
+        isempty(m.captures) && throw(CorruptedException())
     end
-    goodread || throw(CorruptedException())
     return S(m.captures[1])
 end
 

@@ -1,12 +1,18 @@
-using OpenEphys, Base.Test
+using OpenEphysLoader, Base.Test
 
 ### Helper functions ###
-function write_original_header(io::IOStream)
+function write_original_header_fun(nbytes::Integer = 1024)
     local head
     open(joinpath(dirname(@__FILE__), "data", "header.txt")) do readio
-        head = readall(readio)
+        head = readstring(readio)
     end
-    write(io, head)
+    trunchead = head[1:nbytes]
+    return io::IOStream -> write(io, trunchead)
+end
+
+function write_bad_header_fun(nbytes::Integer = 1024)
+    baddata = rand(UInt8, nbytes)
+    return io::IOStream -> write(io, baddata)
 end
 
 function verify_header(header::OriginalHeader)
@@ -27,7 +33,17 @@ end
 # matread
 
 # OriginalHeader constructor
-filecontext(write_original_header) do io
+filecontext(write_original_header_fun()) do io
     header = OriginalHeader(io)
     verify_header(header)
+end
+
+# truncated header
+filecontext(write_original_header_fun(512)) do io
+    @test_throws CorruptedException OriginalHeader(io)
+end
+
+# Header with bad content
+filecontext(write_bad_header_fun()) do io
+    @test_throws CorruptedException OriginalHeader(io)
 end
