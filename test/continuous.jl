@@ -1,4 +1,4 @@
-using OpenEphys, Base.Test, Compat
+using OpenEphys, Base.Test
 
 typealias UninitializedArray Union{Type{Matrix}, Type{Vector}}
 
@@ -61,8 +61,8 @@ end
 function test_loadcontinuous(path::String, data::AbstractArray, rec::Integer,
                             ftime::Integer, rtime::Integer)
     nblocks = fld(length(data), OpenEphys.CONT_REC_N_SAMP)
-    prealloc_times = @compat Vector{Int}(nblocks)
-    prealloc_recs = @compat Vector{Int}(nblocks)
+    prealloc_times = Vector{Int}(nblocks)
+    prealloc_recs = Vector{Int}(nblocks)
     blockbuff = ContBlockBuff()
     for dt in (Int, Float64)
         data_out, t_out, rec_out, fhead =  OpenEphys._loadcontinuous(path, nblocks, dt)
@@ -70,7 +70,7 @@ function test_loadcontinuous(path::String, data::AbstractArray, rec::Integer,
         verify_header(fhead)
         contdata = loadcontinuous(path, Int)
         verify_contdata(contdata, data, rec, ftime, rtime)
-        prealloc_data = @compat Vector{dt}(length(data))
+        prealloc_data = Vector{dt}(length(data))
         fhead, nblocksread = _loadcontinuous!{D}(path,  nblocks, dt,
                         prealloc_data, prealloc_times, prealloc_recs, blockbuff)
         @test nblocksread == nblocks
@@ -124,9 +124,9 @@ function verify_continuous_contents_data{T}(data::Vector,
     end
 end
 cont_data_conversion{T<:Integer}(::Type{T}, data::Vector) =
-    @compat Vector{T}(copy(data))
+    Vector{T}(copy(data))
 cont_data_conversion{T<:FloatingPoint}(::Type{T}, data::Vector) =
-    0.195 * @compat Vector{T}(copy(data))
+    0.195 * Vector{T}(copy(data))
 
 bad_file(io::IOStream) = write(io, "These aren't the droids you're looking for")
 function damaged_file(io::IOStream, args...; kwargs...)
