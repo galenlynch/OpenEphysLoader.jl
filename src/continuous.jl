@@ -94,7 +94,7 @@ for (typename, typeparam, buffertype, defaulttype) = arraytypes
     end
 end
 
-const arrayargs = "(type::Type{T}, contfile::ContinuousFile, [check::Bool])"
+const arrayargs = "(type::Type{T}, io::IOStream, [check::Bool])"
 @doc """
     SampleArray$arrayargs
 File-backed array access to OpenEphys sample values. If `type` is a floating
