@@ -58,7 +58,6 @@ function ContinuousFile(io::IOStream)
     nsample = count_data(nblock)
     return ContinuousFile(io, nsample, nblock, header)
 end
-ContinuousFile(file_name::AbstractString) = ContinuousFile(open(file_name, "r"))
 
 "Abstract array for file-backed open ephys data"
 abstract OEArray{T, C<:ContinuousFile} <: AbstractArray{T, 1}
@@ -67,12 +66,12 @@ sampletype = Real
 timetype = Real
 rectype = Integer
 jointtype = Tuple{sampletype, timetype, rectype}
-arraytypes = ((:SampleArray, sampletype, DataBlock),
-              (:TimeArray, timetype, BlockHeader),
-              (:RecNoArray, rectype, BlockHeader),
-              (:JointArray, jointtype, DataBlock))
+arraytypes = ((:SampleArray, sampletype, DataBlock, Float64),
+              (:TimeArray, timetype, BlockHeader, Float64),
+              (:RecNoArray, rectype, BlockHeader, Int),
+              (:JointArray, jointtype, DataBlock, Tuple{Float64, Float64, Int}))
 ### Generate array datatypes ###
-for (typename, typeparam, buffertype) = arraytypes
+for (typename, typeparam, buffertype, defaulttype) = arraytypes
     @eval begin
         type $(typename){T<:$(typeparam), C<:ContinuousFile} <: OEArray{T, C}
             contfile::C
@@ -80,17 +79,19 @@ for (typename, typeparam, buffertype) = arraytypes
             blockno::UInt
             check::Bool
         end
-        function $(typename){T, C<:ContinuousFile}(::Type{T}, contfile::C, check::Bool = true)
+        function $(typename){T, C<:ContinuousFile}(
+            ::Type{T}, contfile::C, check::Bool = true)
             if check
                 check_filesize(contfile.io)
             end
             block = $(buffertype)()
             return $(typename){T, C}(contfile, block, 0, check)
         end
+        function $(typename){T}(::Type{T}, io::IOStream, check::Bool = true)
+            return $(typename)(T, ContinuousFile(io))
+        end
+        $(typename)(io::IOStream, check::Bool=true) = $(typename)($(defaulttype), io, check)
     end
-end
-function JointArray{C<:ContinuousFile}(contfile::C, check::Bool=true)
-    return JointArray(Tuple{Float64, Float64, Int}, contfile, check)
 end
 
 const arrayargs = "(type::Type{T}, contfile::ContinuousFile, [check::Bool])"

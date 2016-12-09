@@ -6,7 +6,6 @@ import Base: show, showcompact, size, linearindexing, getindex, setindex!, lengt
 export
     # types
     OriginalHeader,
-    ContinuousFile,
     SampleArray,
     TimeArray,
     RecNoArray,

@@ -14,9 +14,6 @@ the entire file contents into memory, use `collect(ArrayType)`.
 Read the header of a original OpenEphys data file. Assumes `io` is at the start of
 the file.
 
-### ContinuousFile(file_name::AbstractString; check=true)
-Open a .continuous data file at path `file_name` and read its header information.
-
 ### SampleArray(type::Type{T}, contfile::ContinuousFile, [check::Bool])
 Returns an array-like object that accesses the samples in the `contfile` file
 without loading the entire file into memory. Samples are converted to the type
