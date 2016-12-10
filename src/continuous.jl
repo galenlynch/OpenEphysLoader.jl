@@ -75,7 +75,8 @@ end
 """
 Abstract array for file-backed continuous OpenEphys data.
 
-Subtype of abstract type [`OEArray`](@ref) with the following fields:
+Subtype of abstract type [`OEArray`](@ref) are read only,
+can be made with an IOStream, and have with the following fields:
 
 # Fields
 
