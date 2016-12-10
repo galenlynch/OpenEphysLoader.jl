@@ -9,6 +9,7 @@ type MATint <: MATLABdata end
 "type for representing Matlab floatingpoint numbers"
 type MATfloat <: MATLABdata end
 
+"Exception type to indicate a malformed data file"
 type CorruptedException <: Exception end
 
 ### Constants for parsing header ###
@@ -30,8 +31,32 @@ const HEADER_TARGET_TYPES = [x[2] for x in HEADER_TYPE_MAP]
 const N_HEADER_LINE = length(HEADER_TYPE_MAP)
 
 """
-    OriginalHeader{T<:AbstractString, S<:Integer, R<:Real}
+    OriginalHeader(io::IOStream)
 Data in the header of binary OpenEphys files
+
+# Fields
+
+**`format`** is the name of the data format.
+
+**`version`** is the version number of the data format.
+
+**`headerbytes`** is the number of bytes in the header.
+
+**`description`** is a description of the header.
+
+**`created`** is the date and time the file was created.
+
+**`channel`** is the name of the channel used to acquire this data.
+
+**`channeltype`** is the type of channel used to acquire this data.
+
+**`samplerate`** is the sampling rate in Hz.
+
+**`blocklength`** is the length in bytes of each block of data within the file.
+
+**`buffersize`** is the size of the buffer used during acquisition, in bytes.
+
+**`bitvolts`** are the Volts per ADC bit.
 """
 immutable OriginalHeader{T<:AbstractString, S<:Integer, R<:Real}
     "Data format"

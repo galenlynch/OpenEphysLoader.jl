@@ -41,7 +41,20 @@ function DataBlock()
     DataBlock(head, body, data, tail)
 end
 
-"Type for an open continuous file"
+"""
+    ContinuousFile(io::IOStream)
+Type for an open continuous file.
+
+# Fields
+
+**`io`** `IOStream` object.
+
+**`nsample`** number of samples in a file.
+
+**`nblock`** number of data blocks in a file.
+
+**`header`** [`OriginalHeader`](@ref) of the current file.
+"""
 immutable ContinuousFile{T<:Integer, S<:Integer, H<:OriginalHeader}
     "IOStream for open continuous file"
     io::IOStream
@@ -59,8 +72,22 @@ function ContinuousFile(io::IOStream)
     return ContinuousFile(io, nsample, nblock, header)
 end
 
-"Abstract array for file-backed open ephys data"
-abstract OEArray{T, C<:ContinuousFile} <: AbstractArray{T, 1}
+"""
+Abstract array for file-backed open ephys data.
+
+All subtypes support an array interface, and have the following fields:
+
+# Fields
+
+**`contfile`** [`ContinuousFile`](@ref) for the current file.
+
+**`block`** buffer object for the data blocks in the file.
+
+**`blockno`** the current block being access in the file.
+
+**`check`** `Bool` to check each data block's validity.
+"""
+abstract OEContArray{T, C<:ContinuousFile} <: AbstractArray{T, 1}
 ### Stuff for code generation ###
 sampletype = Real
 timetype = Real
@@ -73,7 +100,7 @@ arraytypes = ((:SampleArray, sampletype, DataBlock, Float64),
 ### Generate array datatypes ###
 for (typename, typeparam, buffertype, defaulttype) = arraytypes
     @eval begin
-        type $(typename){T<:$(typeparam), C<:ContinuousFile} <: OEArray{T, C}
+        type $(typename){T<:$(typeparam), C<:ContinuousFile} <: OEContArray{T, C}
             contfile::C
             block::$(buffertype)
             blockno::UInt
@@ -95,38 +122,39 @@ for (typename, typeparam, buffertype, defaulttype) = arraytypes
 end
 
 const arrayargs = "(type::Type{T}, io::IOStream, [check::Bool])"
+const arraypreamble = "Subtype of [`OEContArray`](@ref) to provide file backed access to OpenEphys"
 @doc """
     SampleArray$arrayargs
-File-backed array access to OpenEphys sample values. If `type` is a floating
+$arraypreamble sample values. If `type` is a floating
 point type, then the sample value will be converted to voltage (in uV). Otherwise,
 the sample values will remain the raw ADC integer readings.
 """ SampleArray
 @doc """
     TimeArray$arrayargs
-File-backed array access to OpenEphys time stamps. If `type` is a floating
+$arraypreamble time stamps. If `type` is a floating
 point type, then the time stamps will be converted to seconds. Otherwise,
 the time stamp will be the sample number.
 """ TimeArray
 @doc """
     RecNoArray$arrayargs
-File-backed array access to OpenEphys recording numbers.
+$arraypreamble numbers.
 """ RecNoArray
 @doc """
     JointArray$arrayargs
-File-backed array access to OpenEphys data. Returns a tuple of type `type`, whose
+$arraypreamble data. Returns a tuple of type `type`, whose
 values represent `(samplevalue, timestamp, recordingnumber)`. For a description of
 each, see `SampleArray`, `TimeArray`, and `RecNoArray`, respectively.
 """ JointArray
 ### Array interface ###
-length(A::OEArray) = A.contfile.nsample
+length(A::OEContArray) = A.contfile.nsample
 
-size(A::OEArray) = (length(A), 1)
+size(A::OEContArray) = (length(A), 1)
 
-linearindexing{T<:OEArray}(::Type{T}) = Base.LinearFast()
+linearindexing{T<:OEContArray}(::Type{T}) = Base.LinearFast()
 
-setindex!(::OEArray, ::Int) = throw(ReadOnlyMemoryError())
+setindex!(::OEContArray, ::Int) = throw(ReadOnlyMemoryError())
 
-function getindex(A::OEArray, i::Integer)
+function getindex(A::OEContArray, i::Integer)
     prepare_block(A, i)
     relidx = sampno_to_offset(i)
     data = block_data(A, relidx)
@@ -135,7 +163,7 @@ end
 
 ### Array helper functions ###
 "Load data block if necessary"
-function prepare_block(A::OEArray, i::Integer)
+function prepare_block(A::OEContArray, i::Integer)
     blockno = sampno_to_block(i)
     if blockno != A.blockno
         seek_to_block(A.contfile.io, blockno)
@@ -220,7 +248,7 @@ function block_data(A::JointArray, rel_idx::Integer)
 end
 
 ### Methods to convert raw values into desired ones ##
-convert_data{A<:OEArray}(OE::A, data) = convert_data(A, OE.contfile.header, data)
+convert_data{A<:OEContArray}(OE::A, data) = convert_data(A, OE.contfile.header, data)
 function convert_data{T<:AbstractFloat, C}(::Type{SampleArray{T, C}},
                                               H::OriginalHeader, data::Integer)
     return convert(T, data * H.bitvolts)
@@ -256,7 +284,7 @@ function verify_tail!(io::IOStream, tail::Vector{UInt8})
 end
 
 function check_filesize(file::IOStream)
-    @assert rem(filesize(file) - HEADER_N_BYTES, CONT_REC_BLOCK_SIZE) == 0 "File not the right size"
+    rem(filesize(file) - HEADER_N_BYTES, CONT_REC_BLOCK_SIZE) == 0 || throw(CorruptedError())
 end
 
 ### Utility methods ###
