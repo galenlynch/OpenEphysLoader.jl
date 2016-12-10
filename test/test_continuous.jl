@@ -2,23 +2,6 @@ using OpenEphys, Base.Test, Compat
 
 ### Tests ###
 
-## Test utility functions
-
-# getcont_typeno
-chtest = "25_CH10.continuous"
-auxtest ="100_AUX3.continuous"
-chtype, chno = OpenEphys.getcont_typeno(chtest)
-@test chtype == "CH"
-@test chno == 10
-auxtype, auxno = OpenEphys.getcont_typeno(auxtest)
-@test auxtype == "AUX"
-@test auxno == 3
-
-# sort_continuousfiles
-unsortedfiles = ["25_CH10.continuous", "1_AUX1.continuous", "3_CH3.continuous"]
-@test OpenEphys.sort_continuousfiles(unsortedfiles) ==
-        ["3_CH3.continuous", "25_CH10.continuous", "1_AUX1.continuous"]
-
 # inspect_contfile
 nblocks = 20
 block_data = rand(OpenEphys.CONT_REC_SAMP_BITTYPE, nblocks * OpenEphys.CONT_REC_N_SAMP)

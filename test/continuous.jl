@@ -86,20 +86,11 @@ function test_read_contbody(io::IOStream, path::String, data::Vector,
     verify_continuous_contents(data, ftime, rtime, rec, data_out, t_out, rec_out)
 end
 
-function verify_ContBlockHeader(blockhead::OpenEphysLoader.ContBlockHeader, t::Integer, rec::Integer)
+### Verify data types ###
+function verify_BlockHeader(blockhead::OpenEphysLoader.BlockHeader, t::Integer, rec::Integer)
     @test blockhead.timestamp == t
     @test blockhead.nsample == OpenEphysLoader.CONT_REC_N_SAMP
     @test blockhead.recordingnumber == rec
-end
-
-function verify_contdata(contdata::ContinuousData, data::Vector,
-    rec::Integer, ftime::Integer, rtime::Integer)
-    data_out =  contdata.data
-    t_out = contdata.timestamps
-    rec_out = contdata.recordingnumbers
-    fhead = contdata.fileheaders
-    verify_continuous_contents(data, ftime, rtime, rec, data_out, t_out, rec_out)
-    verify_header(fhead)
 end
 
 function verify_continuous_contents(data::Vector, ftime::Integer,
@@ -128,54 +119,15 @@ cont_data_conversion{T<:Integer}(::Type{T}, data::Vector) =
 cont_data_conversion{T<:FloatingPoint}(::Type{T}, data::Vector) =
     0.195 * Vector{T}(copy(data))
 
+### Functions to write .continuous files ###
 bad_file(io::IOStream) = write(io, "These aren't the droids you're looking for")
+
 function damaged_file(io::IOStream, args...; kwargs...)
     write_continuous(io, args...; kwargs...)
     bad_blockhead(io)
 end
-good_block(io::IOStream, d::AbstractArray, t::Integer, r::Integer) = writeblock(io, d, t, r)
-function bad_blockhead(io::IOStream)
-    blockdata = rand(OpenEphysLoader.CONT_REC_SAMP_BITTYPE, OpenEphysLoader.CONT_REC_N_SAMP)
-    writeblock(io, blockdata; bad_blockhead = true)
-end
-function bad_blocktail(io::IOStream)
-    blockdata = rand(OpenEphysLoader.CONT_REC_SAMP_BITTYPE, OpenEphysLoader.CONT_REC_N_SAMP)
-    writeblock(io, blockdata; bad_blocktail = true)
-end
 
-function continuous_dir(dirpath::String, d::AbstractArray, recno::Vector, ftime::Vector, rtime::Vector)
-    nfile = length(d)
-    filenames = Vector{ASCIIString}(nfile)
-    for fileno = 1:nfile
-        filenames[fileno] = joinpath(dirpath, random_continuous_name(fileno))
-        open(filenames[fileno], "w") do io
-            write_continuous(io, d[fileno], recno[fileno], ftime[fileno], rtime[fileno])
-        end
-    end
-    return filenames
-end
-
-function damaged_dir(dirpath::String, d::AbstractArray, recno::Vector, ftime::Vector, rtime::Vector)
-    filenames = continuous_dir(dirpath, d, recno, ftime, rtime)
-    badpath = joinpath(dirpath, random_continuous_name(length(filenames) + 1))
-    open(badpath, "w") do io
-        bad_file(io)
-    end
-    return vcat(filenames; badpath)
-end
-
-function corrupt_dir(dirpath::String, d::AbstractArray, recno::Vector, ftime::Vector, rtime::Vector)
-    filenames = continuous_dir(dirpath, d[2:end], recno[2:end], ftime[2:end], rtime[2:end])
-    corruptpath = joinpath(dirpath, random_continuous_name(length(filenames)))
-    open(tmppath, "w") do io
-        damaged_file(io, d[1], recno[1], ftime[1], rtime[1])
-    end
-    return vcat(filenames; badpath)
-end
-
-function random_continuous_name(chno::Int)
-    return "$(randstring())_$(rand(["CH", "AUX"]))$chno.continuous"
-end
+random_continuous_name(chno::Int) = "$(randstring())_$(rand(["CH", "AUX"]))$chno.continuous"
 random_continuous_name() = random_continuous_name(rand(1:256))
 
 function write_continuous{T<:Integer}(io::IOStream, d::AbstractArray{T, 1},
@@ -205,6 +157,19 @@ function write_continuous(path::String, args...)
     open(path, "w") do io
         write_continuous(io, args...)
     end
+end
+
+### Functions to write data blocks ###
+good_block(io::IOStream, d::AbstractArray, t::Integer, r::Integer) = writeblock(io, d, t, r)
+
+function bad_blockhead(io::IOStream)
+    blockdata = rand(OpenEphysLoader.CONT_REC_SAMP_BITTYPE, OpenEphysLoader.CONT_REC_N_SAMP)
+    writeblock(io, blockdata; bad_blockhead = true)
+end
+
+function bad_blocktail(io::IOStream)
+    blockdata = rand(OpenEphysLoader.CONT_REC_SAMP_BITTYPE, OpenEphysLoader.CONT_REC_N_SAMP)
+    writeblock(io, blockdata; bad_blocktail = true)
 end
 
 function writeblock(io::IOStream, d::AbstractArray, t::Integer = 1, recno::Integer = 0;
