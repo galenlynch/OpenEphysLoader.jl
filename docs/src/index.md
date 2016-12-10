@@ -49,7 +49,7 @@ end
 rm(path)
 ```
 
-To pull the entire file contents into memory, use `copy([`OEArray`](@ref))`.
+To pull the entire file contents into memory, use `copy(OEArray)`.
 
 
 ## Library Outline

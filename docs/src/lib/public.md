@@ -8,7 +8,7 @@ OpenEphysLoader
 
 ### Array types
 All array types are subtypes of the abstract type [`OEArray`](@ref), and
-data from continuouse files are subtypes of the abstract type [`OEContArray`](@ref).
+data from continuous files are subtypes of the abstract type [`OEContArray`](@ref).
 
 ```@docs
 OEArray
