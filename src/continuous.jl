@@ -73,9 +73,9 @@ function ContinuousFile(io::IOStream)
 end
 
 """
-Abstract array for file-backed open ephys data.
+Abstract array for file-backed continuous OpenEphys data.
 
-All subtypes support an array interface, and have the following fields:
+Subtype of abstract type [`OEArray`](@ref) with the following fields:
 
 # Fields
 
@@ -87,7 +87,7 @@ All subtypes support an array interface, and have the following fields:
 
 **`check`** `Bool` to check each data block's validity.
 """
-abstract OEContArray{T, C<:ContinuousFile} <: AbstractArray{T, 1}
+abstract OEContArray{T, C<:ContinuousFile} <: OEArray{T}
 ### Stuff for code generation ###
 sampletype = Real
 timetype = Real
@@ -143,12 +143,14 @@ $arraypreamble numbers.
     JointArray$arrayargs
 $arraypreamble data. Returns a tuple of type `type`, whose
 values represent `(samplevalue, timestamp, recordingnumber)`. For a description of
-each, see `SampleArray`, `TimeArray`, and `RecNoArray`, respectively.
+each, see [`SampleArray`](@ref), [`TimeArray`](@src), and [`RecNoArray`](@ref),
+respectively.
 """ JointArray
+
 ### Array interface ###
 length(A::OEContArray) = A.contfile.nsample
 
-size(A::OEContArray) = (length(A), 1)
+size(A::OEContArray) = (length(A),)
 
 linearindexing{T<:OEContArray}(::Type{T}) = Base.LinearFast()
 

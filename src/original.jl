@@ -1,4 +1,10 @@
 # Type system for original files and header constants
+"""
+Abstract array for file-backed OpenEphys data.
+
+All subtypes support an array interface.
+"""
+abstract OEArray{T} <: AbstractArray{T, 1}
 # I'm using types as a enum here, consider changing this?
 "Abstract class for representing matlab code fragments"
 abstract MATLABdata

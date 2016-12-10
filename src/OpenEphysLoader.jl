@@ -12,6 +12,7 @@ export
     # types
     OriginalHeader,
     ContinuousFile,
+    OEArray,
     OEContArray,
     SampleArray,
     TimeArray,

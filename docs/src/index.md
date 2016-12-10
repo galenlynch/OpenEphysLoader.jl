@@ -1,16 +1,14 @@
 # OpenEphysLoader.jl Documentation #
 
-A set of tools to load data files made by the OpenEphys GUI
+A set of tools to load data files made by
+the [OpenEphys GUI](http://www.open-ephys.org/gui/)
 
 !!! note
     
     This module is experimental, and may damage your data. No module
-    functions should modify the contents of data files, but use this
+    functions intentionally modify the contents of data files, but use this
     module at your own risk.
     
-## Requirements
-Julia 0.5 or higher
-
 ## Package Features
 
 - Read contents of continuous data files without loading the entire file into memory
@@ -19,7 +17,8 @@ Julia 0.5 or higher
 
 ## Example Usage
 OpenEphysLoader.jl provides array types to access file contents. Values accessed
-through these array types are backed by file contents, instead of memory.
+through these subtypes of [`OEArray`](@ref) have an array interface backed by
+file contents, instead of memory.
 
 ```@setup loader
 docpath = @__FILE__()
@@ -50,11 +49,11 @@ end
 rm(path)
 ```
 
-To pull the entire file contents into memory, use `collect(ArrayType)`.
+To pull the entire file contents into memory, use `copy([`OEArray`](@ref))`.
 
-### Information types
 
 ## Library Outline
+
 ```@contents
 Pages = ["lib/public.md", "lib/internals.md"]
 ```
