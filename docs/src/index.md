@@ -1,6 +1,6 @@
 # OpenEphysLoader.jl Documentation #
 
-A set of tools to load data written by the OpenEphys GUI
+A set of tools to load data files made by the OpenEphys GUI
 
 !!! note
     

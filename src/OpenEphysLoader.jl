@@ -1,6 +1,5 @@
 __precompile__()
 """
-    OpenEphysLoader
 Module to read the binary data files created by the OpenEphys GUI
 
 Provides array interfaces to file contents, without loading the entire file into memory

@@ -277,12 +277,14 @@ function convert_data{S<:sampletype,T<:timetype,R<:rectype,C}(
 end
 
 ### Verification methods ###
+"Verify end of block marker"
 function verify_tail!(io::IOStream, tail::Vector{UInt8})
     nbytes = readbytes!(io, tail, CONT_REC_TAIL_SIZE)
     goodread = nbytes == CONT_REC_TAIL_SIZE && tail == CONT_REC_END_MARKER
     return goodread
 end
 
+"Check that file could be comprised of header and complete data blocks"
 function check_filesize(file::IOStream)
     rem(filesize(file) - HEADER_N_BYTES, CONT_REC_BLOCK_SIZE) == 0 || throw(CorruptedError())
 end
