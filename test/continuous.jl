@@ -1,4 +1,4 @@
-using OpenEphys, Base.Test
+using OpenEphysLoader, Base.Test
 
 typealias UninitializedArray Union{Type{Matrix}, Type{Vector}}
 
@@ -28,14 +28,14 @@ function test_load_contfiles{S<:String, T<:Array}(filenames::Vector{S},
     dtype::Type{T}, data::Vector, recs::Vector, ftimes::Vector,
     rtimes::Vector; kwargs...)
     data_out, time_out, recno_out, header_out =
-        OpenEphys.load_contfiles(filenames, dtype; kwargs...)
+        OpenEphysLoader.load_contfiles(filenames, dtype; kwargs...)
     verify_load_contfiles_output(data_out, time_out, recno_out, header_out, data, recs,
                         ftimes, rtimes)
 end
 function test_load_contfiles{S<:String, T<:Array}(filenames::Vector{S},
     dtype::Type{T}, data::Matrix, recs::Vector, ftimes::Vector,
     rtimes::Vector; kwargs...)
-    @test_throws ErrorException OpenEphys.load_contfiles(filenames, dtype; kwargs...)
+    @test_throws ErrorException OpenEphysLoader.load_contfiles(filenames, dtype; kwargs...)
 end
 
 function verify_load_contfiles_output{T<:Matrix, H<:OriginalHeader}(data_out::T,
@@ -60,12 +60,12 @@ end
 
 function test_loadcontinuous(path::String, data::AbstractArray, rec::Integer,
                             ftime::Integer, rtime::Integer)
-    nblocks = fld(length(data), OpenEphys.CONT_REC_N_SAMP)
+    nblocks = fld(length(data), OpenEphysLoader.CONT_REC_N_SAMP)
     prealloc_times = Vector{Int}(nblocks)
     prealloc_recs = Vector{Int}(nblocks)
     blockbuff = ContBlockBuff()
     for dt in (Int, Float64)
-        data_out, t_out, rec_out, fhead =  OpenEphys._loadcontinuous(path, nblocks, dt)
+        data_out, t_out, rec_out, fhead =  OpenEphysLoader._loadcontinuous(path, nblocks, dt)
         verify_continuous_contents(data, ftime, rtime, rec, data_out, t_out, rec_out)
         verify_header(fhead)
         contdata = loadcontinuous(path, Int)
@@ -80,15 +80,15 @@ end
 
 function test_read_contbody(io::IOStream, path::String, data::Vector,
      dtype::DataType, ftime::Integer, rtime::Integer, rec::Integer)
-    skip(io, OpenEphys.HEADER_N_BYTES)
-    nblocks = OpenEphys.inspect_contfile(path)
-    data_out, t_out, rec_out = OpenEphys.read_contbody(io, nblocks, dtype)
+    skip(io, OpenEphysLoader.HEADER_N_BYTES)
+    nblocks = OpenEphysLoader.inspect_contfile(path)
+    data_out, t_out, rec_out = OpenEphysLoader.read_contbody(io, nblocks, dtype)
     verify_continuous_contents(data, ftime, rtime, rec, data_out, t_out, rec_out)
 end
 
-function verify_ContBlockHeader(blockhead::OpenEphys.ContBlockHeader, t::Integer, rec::Integer)
+function verify_ContBlockHeader(blockhead::OpenEphysLoader.ContBlockHeader, t::Integer, rec::Integer)
     @test blockhead.timestamp == t
-    @test blockhead.nsample == OpenEphys.CONT_REC_N_SAMP
+    @test blockhead.nsample == OpenEphysLoader.CONT_REC_N_SAMP
     @test blockhead.recordingnumber == rec
 end
 
@@ -109,7 +109,7 @@ function verify_continuous_contents(data::Vector, ftime::Integer,
     nstartzeros = Int(rtime - ftime)
     verify_continuous_contents_data(data, data_out, nstartzeros)
     ngoodblocks = length(t_out)
-    @test t_out == ftime + Int[OpenEphys.CONT_REC_N_SAMP * x for x in 0:(ngoodblocks - 1)]
+    @test t_out == ftime + Int[OpenEphysLoader.CONT_REC_N_SAMP * x for x in 0:(ngoodblocks - 1)]
     @test rec_out == fill(rec, ngoodblocks)
 end
 function verify_continuous_contents_data{T}(data::Vector,
@@ -135,11 +135,11 @@ function damaged_file(io::IOStream, args...; kwargs...)
 end
 good_block(io::IOStream, d::AbstractArray, t::Integer, r::Integer) = writeblock(io, d, t, r)
 function bad_blockhead(io::IOStream)
-    blockdata = rand(OpenEphys.CONT_REC_SAMP_BITTYPE, OpenEphys.CONT_REC_N_SAMP)
+    blockdata = rand(OpenEphysLoader.CONT_REC_SAMP_BITTYPE, OpenEphysLoader.CONT_REC_N_SAMP)
     writeblock(io, blockdata; bad_blockhead = true)
 end
 function bad_blocktail(io::IOStream)
-    blockdata = rand(OpenEphys.CONT_REC_SAMP_BITTYPE, OpenEphys.CONT_REC_N_SAMP)
+    blockdata = rand(OpenEphysLoader.CONT_REC_SAMP_BITTYPE, OpenEphysLoader.CONT_REC_N_SAMP)
     writeblock(io, blockdata; bad_blocktail = true)
 end
 
@@ -183,11 +183,11 @@ function write_continuous{T<:Integer}(io::IOStream, d::AbstractArray{T, 1},
     l = length(d)
     t = ftime
     nstartpad = Int(rtime - ftime)
-    nstartpad < OpenEphys.CONT_REC_N_SAMP || error("Delay between file start and recording is too long")
-    nstoppad = mod(-(l + nstartpad), OpenEphys.CONT_REC_N_SAMP)
-    nblock = cld(l + nstartpad, OpenEphys.CONT_REC_N_SAMP) # ceiling divide
+    nstartpad < OpenEphysLoader.CONT_REC_N_SAMP || error("Delay between file start and recording is too long")
+    nstoppad = mod(-(l + nstartpad), OpenEphysLoader.CONT_REC_N_SAMP)
+    nblock = cld(l + nstartpad, OpenEphysLoader.CONT_REC_N_SAMP) # ceiling divide
     if nstoppad > 0 || nstartpad > 0
-        padded = zeros(Int, OpenEphys.CONT_REC_N_SAMP * nblock)
+        padded = zeros(Int, OpenEphysLoader.CONT_REC_N_SAMP * nblock)
         padded[(1 + nstartpad):(end - nstoppad)] = d
     else
         padded = d # no padding needed, renaming for clarity below
@@ -196,37 +196,35 @@ function write_continuous{T<:Integer}(io::IOStream, d::AbstractArray{T, 1},
     tblock = ftime
     offset = 0
     for blockno in 1:nblock
-        writeblock(io, sub(padded, offset + (1:OpenEphys.CONT_REC_N_SAMP)), tblock, recno)
-        tblock += OpenEphys.CONT_REC_N_SAMP
-        offset += OpenEphys.CONT_REC_N_SAMP
+        writeblock(io, sub(padded, offset + (1:OpenEphysLoader.CONT_REC_N_SAMP)), tblock, recno)
+        tblock += OpenEphysLoader.CONT_REC_N_SAMP
+        offset += OpenEphysLoader.CONT_REC_N_SAMP
     end
 end
-function write_continuous(path::String, d::AbstractArray{Int, 1},
-                    recno::Integer = 0, ftime::Integer = 1, rtime::Integer = 1)
+function write_continuous(path::String, args...)
     open(path, "w") do io
-        write_continuous(io, d, recno, ftime, rtime; bad_blockhead = bad_blockhead,
-        bad_blocktail = bad_blocktail)
+        write_continuous(io, args...)
     end
 end
 
 function writeblock(io::IOStream, d::AbstractArray, t::Integer = 1, recno::Integer = 0;
      bad_blockhead::Bool = false, bad_blocktail::Bool = false)
-     tmp_data = similar(d, OpenEphys.CONT_REC_SAMP_BITTYPE)
+     tmp_data = similar(d, OpenEphysLoader.CONT_REC_SAMP_BITTYPE)
      copy!(tmp_data, d)
      for idx in eachindex(tmp_data)
          @inbounds tmp_data[idx] = hton(tmp_data[idx])
      end
-     write(io, OpenEphys.CONT_REC_TIME_BITTYPE(t))
+     write(io, OpenEphysLoader.CONT_REC_TIME_BITTYPE(t))
      if bad_blockhead
-         write(io, zero(OpenEphys.CONT_REC_N_SAMP_BITTYPE))
+         write(io, zero(OpenEphysLoader.CONT_REC_N_SAMP_BITTYPE))
      else
-         write(io, OpenEphys.CONT_REC_N_SAMP_BITTYPE(OpenEphys.CONT_REC_N_SAMP))
+         write(io, OpenEphysLoader.CONT_REC_N_SAMP_BITTYPE(OpenEphysLoader.CONT_REC_N_SAMP))
      end
-     write(io, OpenEphys.CONT_REC_REC_NO_BITTYPE(recno))
+     write(io, OpenEphysLoader.CONT_REC_REC_NO_BITTYPE(recno))
      write(io, tmp_data)
      if bad_blocktail
          write(io, b"razzmatazz")
      else
-         write(io, OpenEphys.CONT_REC_END_MARKER)
+         write(io, OpenEphysLoader.CONT_REC_END_MARKER)
      end
 end
