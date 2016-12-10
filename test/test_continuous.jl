@@ -1,16 +1,21 @@
-using OpenEphys, Base.Test, Compat
+using OpenEphys, Base.Test
 
 ### Tests ###
 
+# Get OEArray Subtypes
+OEArrayLeafTypes = Array{Type, 1}()
+OESub
+# Get OEContArray Subtypes
 # inspect_contfile
-nblocks = 20
-block_data = rand(OpenEphys.CONT_REC_SAMP_BITTYPE, nblocks * OpenEphys.CONT_REC_N_SAMP)
-@test OpenEphys.inspect_contfile(randstring()) == -1
-pathcontext(bad_file) do path
+filecontext(bad_file) do io
+    # ContinuousFile constructor
+    @test_throws CorruptedException ContinuousFile(io)
+    @test_throws CorruptedException 
     @test OpenEphys.inspect_contfile(path) == -1
 end
+block_data = rand(OpenEphys.CONT_REC_SAMP_BITTYPE, NBLOCKS * OpenEphys.CONT_REC_N_SAMP)
 pathcontext(write_continuous, block_data) do path
-    @test OpenEphys.inspect_contfile(path) == nblocks
+    @test OpenEphys.inspect_contfile(path) == NBLOCKS
 end
 
 ## Test reading from blocks
@@ -81,8 +86,8 @@ filecontext(good_block, data, t, rec) do io
 end
 
 # read_contbody and read_contbody!
-nblocks = 20
-data = rand(OpenEphys.CONT_REC_SAMP_BITTYPE, nblocks * OpenEphys.CONT_REC_N_SAMP)
+NBLOCKS = 20
+data = rand(OpenEphys.CONT_REC_SAMP_BITTYPE, NBLOCKS * OpenEphys.CONT_REC_N_SAMP)
 ftime = fld(rand(OpenEphys.CONT_REC_REC_NO_BITTYPE), 2)
 rtime = ftime + rand(1:OpenEphys.CONT_REC_N_SAMP)
 dtype = Int
@@ -107,10 +112,10 @@ end
 #Vector case
 nfile = 5
 nblock = rand(1:5, nfile)
-data = @compat Vector{Vector{OpenEphys.CONT_REC_SAMP_BITTYPE}}(nfile)
-recs = @compat Vector{Int}(nfile)
-ftimes = @compat Vector{Int}(nfile)
-rtimes = @compat Vector{Int}(nfile)
+data = Vector{Vector{OpenEphys.CONT_REC_SAMP_BITTYPE}}(nfile)
+recs = Vector{Int}(nfile)
+ftimes = Vector{Int}(nfile)
+rtimes = Vector{Int}(nfile)
 for fileno = 1:nfile
     data[fileno] = rand(OpenEphys.CONT_REC_SAMP_BITTYPE, nblock[fileno] * OpenEphys.CONT_REC_N_SAMP)
     recs[fileno] = rand(OpenEphys.CONT_REC_REC_NO_BITTYPE)
@@ -124,8 +129,8 @@ for context in contexts
     end
 end
 #Matrix case
-nblocks = 5
-nsamp = nblocks * OpenEphys.CONT_REC_N_SAMP
+NBLOCKS = 5
+nsamp = NBLOCKS * OpenEphys.CONT_REC_N_SAMP
 data = @compat Vector{Vector{OpenEphys.CONT_REC_SAMP_BITTYPE}}(nfile)
 recs = rand(OpenEphys.CONT_REC_REC_NO_BITTYPE) * ones(Int, nfile)
 ftimes = fld(rand(OpenEphys.CONT_REC_TIME_BITTYPE), 2) * ones(Int, nfile)

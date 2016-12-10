@@ -1,89 +1,23 @@
 using OpenEphysLoader, Base.Test
+# Helper functions to test OpenEphysLoader's handling of continuous files
 
-typealias UninitializedArray Union{Type{Matrix}, Type{Vector}}
-
-### Helper functions ###
-function test_load_contfiles_corrupt{S<:String}(filenames::Vector{S},
-    arrtype::Type{Matrix}, data::Vector, recs::Vector, ftimes::Vector,
-    rtimes::Vector; kwargs...)
-    # first data entry will be put into corrupt file and inaccesible
-    clipped_data = data[:, 2:end]
-    clipped_recs = recs[2:end]
-    clipped_ftimes = ftimes[2:end]
-    clipped_rtimes = rtimes[2:end]
-    test_load_contfiles(filenames, arrtype, clipped_data, clipped_recs,
-                        clipped_ftimes, clipped_rtimes)
+### Test interfaces ###
+function test_OEArray_interface(A::OEArray)
+    @assert !isempty(A) "Tests require a non-empty array"
+    @test !isempty(size(A))
+    @test !isempty(A[1])
+    @test isa(eltype(A), Type)
+    @test !isempty(length(A))
+    @test_throws ErrorException A[1] = A[1]
 end
 
-function test_load_contfiles{S<:String, U<:UninitializedArray}(filenames::Vector{S},
-    arrtype::U, data::Array, recs::Vector, ftimes::Vector,
-    rtimes::Vector; kwargs...)
-    elts = (Float64, Int)
-    for elt in elts
-        dtype = arrtype{elt} # Make dtype,
-        test_load_contfiles(filenames, dtype, data, recs, ftimes, rtimes; kwargs...)
-    end
-end
-function test_load_contfiles{S<:String, T<:Array}(filenames::Vector{S},
-    dtype::Type{T}, data::Vector, recs::Vector, ftimes::Vector,
-    rtimes::Vector; kwargs...)
-    data_out, time_out, recno_out, header_out =
-        OpenEphysLoader.load_contfiles(filenames, dtype; kwargs...)
-    verify_load_contfiles_output(data_out, time_out, recno_out, header_out, data, recs,
-                        ftimes, rtimes)
-end
-function test_load_contfiles{S<:String, T<:Array}(filenames::Vector{S},
-    dtype::Type{T}, data::Matrix, recs::Vector, ftimes::Vector,
-    rtimes::Vector; kwargs...)
-    @test_throws ErrorException OpenEphysLoader.load_contfiles(filenames, dtype; kwargs...)
-end
-
-function verify_load_contfiles_output{T<:Matrix, H<:OriginalHeader}(data_out::T,
-    time_out::T, recno_out::Matrix{Int}, header_out::Vector{H},
-    data::Vector, recs::Vector, ftimes::Vector, rtimes::Vector)
-    for idx in eachindex(data)
-        verify_header(header_out[idx])
-        verify_continuous_contents(data[idx], ftimes[idx], rtimes[idx], recs[idx],
-        data_out[:, idx], time_out[:, idx], recno_out[:, idx])
-    end
-end
-function verify_load_contfiles_output{T<:Vector, H<:OriginalHeader}(data_out::T,
-    time_out::Vector{Vector{Int}}, recno_out::Vector{Vector{Int}},
-    header_out::Vector{H}, data::Vector, recs::Vector,
-    ftimes::Vector, rtimes::Vector)
-    for idx in eachindex(data)
-        verify_header(header_out[idx])
-        verify_continuous_contents(data[idx], ftimes[idx], rtimes[idx], recs[idx],
-        data_out[idx], time_out[idx], recno_out[idx])
-    end
-end
-
-function test_loadcontinuous(path::String, data::AbstractArray, rec::Integer,
-                            ftime::Integer, rtime::Integer)
-    nblocks = fld(length(data), OpenEphysLoader.CONT_REC_N_SAMP)
-    prealloc_times = Vector{Int}(nblocks)
-    prealloc_recs = Vector{Int}(nblocks)
-    blockbuff = ContBlockBuff()
-    for dt in (Int, Float64)
-        data_out, t_out, rec_out, fhead =  OpenEphysLoader._loadcontinuous(path, nblocks, dt)
-        verify_continuous_contents(data, ftime, rtime, rec, data_out, t_out, rec_out)
-        verify_header(fhead)
-        contdata = loadcontinuous(path, Int)
-        verify_contdata(contdata, data, rec, ftime, rtime)
-        prealloc_data = Vector{dt}(length(data))
-        fhead, nblocksread = _loadcontinuous!{D}(path,  nblocks, dt,
-                        prealloc_data, prealloc_times, prealloc_recs, blockbuff)
-        @test nblocksread == nblocks
-        verify_header(fhead)
-    end
-end
-
-function test_read_contbody(io::IOStream, path::String, data::Vector,
-     dtype::DataType, ftime::Integer, rtime::Integer, rec::Integer)
-    skip(io, OpenEphysLoader.HEADER_N_BYTES)
-    nblocks = OpenEphysLoader.inspect_contfile(path)
-    data_out, t_out, rec_out = OpenEphysLoader.read_contbody(io, nblocks, dtype)
-    verify_continuous_contents(data, ftime, rtime, rec, data_out, t_out, rec_out)
+function test_OEContArray_interface{T<:OEContArray}(::Type{T})
+    fields = getfields(T)
+    @test :contfile in fields
+    @test :block in fields
+    @test :blockno in fields
+    @test :check in fields
+    @test !isempty(methods(T, (IOStream,)))
 end
 
 ### Verify data types ###
@@ -93,31 +27,18 @@ function verify_BlockHeader(blockhead::OpenEphysLoader.BlockHeader, t::Integer, 
     @test blockhead.recordingnumber == rec
 end
 
-function verify_continuous_contents(data::Vector, ftime::Integer,
-                                rtime::Integer, rec::Integer,
-                                data_out::Vector, t_out::Vector{Int},
-                                rec_out::Vector{Int})
-    nstartzeros = Int(rtime - ftime)
-    verify_continuous_contents_data(data, data_out, nstartzeros)
-    ngoodblocks = length(t_out)
-    @test t_out == ftime + Int[OpenEphysLoader.CONT_REC_N_SAMP * x for x in 0:(ngoodblocks - 1)]
-    @test rec_out == fill(rec, ngoodblocks)
+function verify_DataBlock(
+    block::OpenEphysLoader.DataBlock,
+    t::Integer,
+    rec::Integer,
+    body::Vector{UInt8},
+    data::Vector{OpenEphysLoader.CONT_REC_SAMP_BITTYPE},
+)
+    verify_BlockHeader(block.head, t, rec)
+    @test block.body == body
+    @test block.data == data
+    @test block.tail == OpenEphysLoader.CONT_REC_END_MARKER
 end
-function verify_continuous_contents_data{T}(data::Vector,
-                                        data_out::Vector{T}, nstartzeros::Integer)
-    ndata = length(data)
-    lastdata_idx = nstartzeros + ndata
-    @test data_out[nstartzeros + (1:ndata)] == cont_data_conversion(T, data)
-    @test data_out[1:nstartzeros] == zeros(T, nstartzeros)
-    if lastdata_idx < ndata
-        n_data_out = length(data_out)
-        @test data_out[(lastdata_idx + 1):end] == zeros(T, n_data_out - lastdata_idx)
-    end
-end
-cont_data_conversion{T<:Integer}(::Type{T}, data::Vector) =
-    Vector{T}(copy(data))
-cont_data_conversion{T<:FloatingPoint}(::Type{T}, data::Vector) =
-    0.195 * Vector{T}(copy(data))
 
 ### Functions to write .continuous files ###
 bad_file(io::IOStream) = write(io, "These aren't the droids you're looking for")
@@ -193,3 +114,21 @@ function writeblock(io::IOStream, d::AbstractArray, t::Integer = 1, recno::Integ
          write(io, OpenEphysLoader.CONT_REC_END_MARKER)
      end
 end
+
+### Utility functions ###
+cont_data_conversion{T<:Integer}(::Type{T}, data::Vector) =
+    Vector{T}(copy(data))
+cont_data_conversion{T<:FloatingPoint}(::Type{T}, data::Vector) =
+    0.195 * Vector{T}(copy(data))
+
+function rand_block_data()
+    return rand(OpenEphysLoader.CONT_REC_SAMP_BITTYPE, OpenEphysLoader.CONT_REC_N_SAMP)
+end
+
+function leaf_types{T<:OEArray}(::Type{T})
+    leaves = Array{DataType, 1}()
+    rawsubtypes = subtypes(T) # Any type for some reason
+    branches = Array{DataType, 1}(length(rawsubtypes))
+    copy!(branches, rawsubtypes)
+end
+
