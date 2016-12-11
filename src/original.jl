@@ -2,7 +2,8 @@
 """
 Abstract array for file-backed OpenEphys data.
 
-All subtypes support a ready-only array interface.
+All subtypes support a ready-only array interface and should
+be constructable with a single IOStream argument.
 """
 abstract OEArray{T} <: AbstractArray{T, 1}
 # I'm using types as a enum here, consider changing this?
