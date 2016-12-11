@@ -110,7 +110,7 @@ for (typename, typeparam, buffertype, defaulttype) = arraytypes
         function $(typename){T, C<:ContinuousFile}(
             ::Type{T}, contfile::C, check::Bool = true)
             if check
-                check_filesize(contfile.io)
+                check_filesize(contfile.io) || throw(CorruptedError())
             end
             block = $(buffertype)()
             return $(typename){T, C}(contfile, block, 0, check)
@@ -189,7 +189,9 @@ sampno_to_block(sampno::Integer) = fld(sampno - 1, CONT_REC_N_SAMP) + 1
 
 sampno_to_offset(sampno::Integer) = mod(sampno - 1, CONT_REC_N_SAMP) + 1
 
-block_start_pos(blockno::Integer) = (blockno - 1) * CONT_REC_BLOCK_SIZE + HEADER_N_BYTES
+function block_start_pos(blockno::Integer)
+    return (blockno - 1) * CONT_REC_BLOCK_SIZE + HEADER_N_BYTES
+end
 
 ### File access and conversion ###
 "Read file data block into data block buffer"
@@ -268,7 +270,10 @@ function convert_data{T<:Integer, C}(::Type{TimeArray{T, C}},
                                               ::OriginalHeader, data::Integer)
     return convert(T, data)
 end
-function convert_data{T, C}(::Type{RecNoArray{T, C}}, ::OriginalHeader, data::Integer)
+function convert_data{T, C}(
+    ::Type{RecNoArray{T, C}},
+    ::OriginalHeader,
+    data::Integer)
     return convert(T, data)
 end
 function convert_data{S<:sampletype,T<:timetype,R<:rectype,C}(
@@ -289,7 +294,7 @@ end
 
 "Check that file could be comprised of header and complete data blocks"
 function check_filesize(file::IOStream)
-    rem(filesize(file) - HEADER_N_BYTES, CONT_REC_BLOCK_SIZE) == 0 || throw(CorruptedError())
+    filesizeok = rem(filesize(file) - HEADER_N_BYTES, CONT_REC_BLOCK_SIZE) == 0
 end
 
 ### Utility methods ###
