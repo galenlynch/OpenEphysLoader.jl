@@ -1,16 +1,99 @@
 using OpenEphys, Base.Test
 
 ### Tests ###
+const samps_per_block = OpenEphysLoader.CONT_REC_N_SAMP
+# sampno_to_block
+@test OpenEphysLoader.sampno_to_block(1) == 1
+@test OpenEphysLoader.sampno_to_block(samps_per_block) == 1
+@test OpenEphysLoader.sampno_to_block(samps_per_block + 1) == 2
+@test OpenEphysLoader.sampno_to_block(0) == 0
 
-# Get OEArray Subtypes
-OEArrayLeafTypes = Array{Type, 1}()
-OESub
+# sampno_to_offset
+@test OpenEphysLoader.sampno_to_offset(1) == 1
+@test OpenEphysLoader.sampno_to_offset(2) == 2
+@test OpenEphysLoader.sampno_to_offset(samps_per_block) == samps_per_block
+@test OpenEphysLoader.sampno_to_offset(samps_per_block + 1) == 1
+
+# block_start_pos
+@test OpenEphysLoader.block_start_pos(1) == 1024
+@test OpenEphysLoader.block_start_pos(2) == 3094
+
+# Test continuous interfaces
+# Test sample iterator
+const nblock = 2
+const testdata = cat(1, (rand_block_data() for i = 1:nblock)...)
+const recno = 0
+const startsamp = 1
+filecontext(write_continuous, testdata, recno, startsamp) do io
+    # counting utilities
+    @test OpenEphysLoader.count_data(io) == length(testdata)
+
+    @test OpenEphysLoader.count_blocks(io) == nblock
+
+    @test OpenEphysLoader.check_filesize(io)
+
+    # File seeking
+    OpenEphysLoader.seek_to_block(io, 2)
+    @test position(io) == 3094
+    OpenEphysLoader.seek_to_block(io, 1)
+    @test position(io) == 1024
+
+    # Block header reading
+    testblockhead = OpenEphysLoader.BlockHeader()
+    @test OpenEphysLoader.read_into!(io, testblockhead)
+    verify_BlockBuffer(testblockhead, startsamp, recno)
+
+    # Data conversion
+    testblock = OpenEphysLoader.DataBlock()
+    blockdata = rand(eltype(testblock.data), size(testblock.data))
+    testblock.body = to_OE_bytes(blockdata)
+    OpenEphysLoader.convert_block!(testblock)
+    @test testblock.data == blockdata
+
+    # Block buffering
+    @test OpenEphysLoader.read_into!(io, testblock, true)
+    block_data, block_oebytes, blockstart = to_block_contents(testdata, 2)
+    verify_BlockBuffer(testblock, blockstart, recno, block_oebytes, block_data)
+
+    sampletypes = [Int, OpenEphysLoader.CONT_REC_SAMP_BITTYPE, Float64]
+    test_OEContArray(io,
+                     SampleArray,
+                     sampletypes,
+                     testdata,
+                     nblock,
+                     recno,
+                     startsamp)
+    test_OEContArray(io,
+                     TimeArray,
+                     sampletypes,
+                     testdata,
+                     nblock,
+                     recno,
+                     startsamp)
+    recnotypes = [Int]
+    test_OEContArray(io,
+                     RecNoArray,
+                     recnotypes,
+                     testdata,
+                     nblock,
+                     recno,
+                     startsamp)
+    jointtypes = [Tuple{Float64, Float64, Int}, Tuple{Int, Int, Int}]
+    test_OEContArray(io,
+                     JointArray,
+                     jointtypes,
+                     testdata,
+                     nblock,
+                     recno,
+                     startsamp)
+end
+
 # Get OEContArray Subtypes
 # inspect_contfile
 filecontext(bad_file) do io
     # ContinuousFile constructor
     @test_throws CorruptedException ContinuousFile(io)
-    @test_throws CorruptedException 
+    @test_throws CorruptedException
     @test OpenEphys.inspect_contfile(path) == -1
 end
 block_data = rand(OpenEphys.CONT_REC_SAMP_BITTYPE, NBLOCKS * OpenEphys.CONT_REC_N_SAMP)
