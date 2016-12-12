@@ -6,13 +6,14 @@ const CONT_REC_N_SAMP_BITTYPE = UInt16
 const CONT_REC_REC_NO_BITTYPE = UInt16
 const CONT_REC_SAMP_BITTYPE = Int16
 const CONT_REC_BYTES_PER_SAMP = sizeof(CONT_REC_SAMP_BITTYPE)
-const CONT_REC_END_MARKER = UInt8[0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06,
-                                  0x07, 0x08, 0xff]
+const CONT_REC_END_MARKER = UInt8[0x00, 0x01, 0x02, 0x03, 0x04,
+                                  0x05, 0x06, 0x07, 0x08, 0xff]
 const CONT_REC_HEAD_SIZE = mapreduce(sizeof, +, [CONT_REC_TIME_BITTYPE,
                              CONT_REC_N_SAMP_BITTYPE, CONT_REC_REC_NO_BITTYPE])
 const CONT_REC_BODY_SIZE = CONT_REC_N_SAMP * sizeof(CONT_REC_SAMP_BITTYPE)
 const CONT_REC_TAIL_SIZE = sizeof(CONT_REC_END_MARKER)
-const CONT_REC_BLOCK_SIZE = CONT_REC_HEAD_SIZE + CONT_REC_BODY_SIZE + CONT_REC_TAIL_SIZE
+const CONT_REC_BLOCK_SIZE = CONT_REC_HEAD_SIZE + CONT_REC_BODY_SIZE +
+    CONT_REC_TAIL_SIZE
 
 ### Types ###
 "Type to buffer continuous file contents"
@@ -118,12 +119,15 @@ for (typename, typeparam, buffertype, defaulttype) = arraytypes
         function $(typename){T}(::Type{T}, io::IOStream, check::Bool = true)
             return $(typename)(T, ContinuousFile(io))
         end
-        $(typename)(io::IOStream, check::Bool=true) = $(typename)($(defaulttype), io, check)
+        function $(typename)(io::IOStream, check::Bool=true)
+            return $(typename)($(defaulttype), io, check)
+        end
     end
 end
 
 const arrayargs = "(type::Type{T}, io::IOStream, [check::Bool])"
-const arraypreamble = "Subtype of [`OEContArray`](@ref) to provide file backed access to OpenEphys"
+const arraypreamble =
+    "Subtype of [`OEContArray`](@ref) to provide file backed access to OpenEphys"
 @doc """
     SampleArray$arrayargs
 $arraypreamble sample values. If `type` is a floating
@@ -233,6 +237,7 @@ read_into!(io::IOStream, head::BlockHeader, ::Bool) = read_into!(io, head)
 
 "Convert the wacky data format in OpenEphys continuous files"
 function convert_block!(block::DataBlock)
+    # block.body will be modified by this call! reinterpret returns a reference
     contents = reinterpret(CONT_REC_SAMP_BITTYPE, block.body) # readbuff is UInt8
     # Correct for big endianness of this data block
     for idx in eachindex(contents)
