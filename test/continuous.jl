@@ -231,7 +231,7 @@ function write_continuous{T<:Integer}(
     else
         padded = d # no padding needed, renaming for clarity below
     end
-    write_original_header_fun()(io)
+    write_fheader_fun()(io)
     tblock = startsamp
     offset = 0
     for blockno in 1:nblock

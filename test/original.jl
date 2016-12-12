@@ -1,18 +1,34 @@
 using OpenEphysLoader, Base.Test
 
 ### Helper functions ###
-function write_original_header_fun(nbytes::Integer = 1024)
+function write_bad_fheader(badtype::Symbol, nbytes::Integer = 1024)
+    local outfun
+    if badtype == :version
+        outfun = write_fheader_fun(nbytes, "header_wrongversion.txt")
+    elseif badtype == :format
+        outfun = write_fheader_fun(nbytes, "header_wrongformat.txt")
+    elseif badtype == :noise
+        baddata = rand(UInt8, nbytes)
+        outfun = io::IOStream -> write(io, baddata)
+    else
+        error("badtype unrecognized")
+    end
+    return outfun
+end
+
+function write_fheader_fun(
+    nbytes::Integer = 1024,
+    headerfile::String = "header.txt"
+)
     local head
-    open(joinpath(dirname(@__FILE__), "data", "header.txt")) do readio
+    headerpath = joinpath(dirname(@__FILE__), "data", headerfile)
+    @assert isfile(headerpath) "Could not load header file"
+    open(headerpath, "r") do readio
+        @assert stat(readio).size >= nbytes "Header not long enough"
         head = readstring(readio)
     end
     trunchead = head[1:nbytes]
     return io::IOStream -> write(io, trunchead)
-end
-
-function write_bad_header_fun(nbytes::Integer = 1024)
-    baddata = rand(UInt8, nbytes)
-    return io::IOStream -> write(io, baddata)
 end
 
 function verify_header(header::OriginalHeader)
@@ -33,17 +49,25 @@ end
 # matread
 
 # OriginalHeader constructor
-filecontext(write_original_header_fun()) do io
+filecontext(write_fheader_fun()) do io
     header = OriginalHeader(io)
     verify_header(header)
 end
 
 # truncated header
-filecontext(write_original_header_fun(512)) do io
+filecontext(write_fheader_fun(512)) do io
     @test_throws CorruptedException OriginalHeader(io)
 end
 
 # Header with bad content
-filecontext(write_bad_header_fun()) do io
+filecontext(write_bad_fheader(:noise)) do io
+    @test_throws CorruptedException OriginalHeader(io)
+end
+
+filecontext(write_bad_fheader(:version)) do io
+    @test_throws CorruptedException OriginalHeader(io)
+end
+
+filecontext(write_bad_fheader(:format)) do io
     @test_throws CorruptedException OriginalHeader(io)
 end
