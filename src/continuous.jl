@@ -76,6 +76,10 @@ end
 """
 Abstract array for file-backed continuous OpenEphys data.
 
+Will throw [`CorruptedException`](@ref) if the data file has
+a corrupt [`OriginalHeader`](@ref), is not the correct size
+for an `.continuous` file, or contains corrupt data blocks.
+
 Subtype of abstract type [`OEArray`](@ref) are read only,
 and have with the following fields:
 

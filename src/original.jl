@@ -39,7 +39,10 @@ const N_HEADER_LINE = length(HEADER_TYPE_MAP)
 
 """
     OriginalHeader(io::IOStream)
-Data in the header of binary OpenEphys files
+Data in the header of binary OpenEphys files.
+
+Will throw [`CorruptedException`](@ref) if header is corrupt,
+not an "OpenEphys" data format, or not version 0.4 of the data format.
 
 # Fields
 
