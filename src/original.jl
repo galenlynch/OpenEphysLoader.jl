@@ -88,7 +88,66 @@ immutable OriginalHeader{T<:AbstractString, S<:Integer, R<:Real}
     buffersize::S
     "Volts/bit of ADC values"
     bitvolts::R
+
+    function OriginalHeader(
+        format::T,
+        version::VersionNumber,
+        headerbytes::S,
+        description::T,
+        created::DateTime,
+        channel::T,
+        channeltype::T,
+        samplerate::S,
+        blocklength::S,
+        buffersize::S,
+        bitvolts::R
+    )
+        format == "Open Ephys Data Format" || throw(CorruptedException())
+        version == v"0.4" || throw(CorruptedException())
+        return new(
+            format,
+            version,
+            headerbytes,
+            description,
+            created,
+            channel,
+            channeltype,
+            samplerate,
+            blocklength,
+            buffersize,
+            bitvolts
+        )
+    end
 end
+
+function OriginalHeader{T,S,R}(
+    format::T,
+    version::VersionNumber,
+    headerbytes::S,
+    description::T,
+    created::DateTime,
+    channel::T,
+    channeltype::T,
+    samplerate::S,
+    blocklength::S,
+    buffersize::S,
+    bitvolts::R
+)
+    return OriginalHeader{T,S,R}(
+        format,
+        version,
+        headerbytes,
+        description,
+        created,
+        channel,
+        channeltype,
+        samplerate,
+        blocklength,
+        buffersize,
+        bitvolts
+    )
+end
+
 """
     OriginalHeader(io::IOStream)
 Reads the header of the open binary file `io`. Assumes that the stream
@@ -102,7 +161,7 @@ function OriginalHeader(io::IOStream)
     isvalid(headstr) || throw(CorruptedException())
     substrs =  split(headstr, ';', keep = false)
     resize!(substrs, N_HEADER_LINE)
-    OriginalHeader(
+    return OriginalHeader(
         map(parseline, zip(HEADER_MATTYPES, HEADER_TARGET_TYPES, substrs))...
     )::OriginalHeader{String, Int, Float64}
 end
