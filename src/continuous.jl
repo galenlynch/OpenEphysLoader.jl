@@ -111,7 +111,7 @@ for (typename, typeparam, buffertype, defaulttype) = arraytypes
         function $(typename){T, C<:ContinuousFile}(
             ::Type{T}, contfile::C, check::Bool = true)
             if check
-                check_filesize(contfile.io) || throw(CorruptedError())
+                check_filesize(contfile.io) || throw(CorruptedException())
             end
             block = $(buffertype)()
             return $(typename){T, C}(contfile, block, 0, check)
@@ -162,7 +162,7 @@ linearindexing{T<:OEContArray}(::Type{T}) = Base.LinearFast()
 setindex!(::OEContArray, ::Int) = throw(ReadOnlyMemoryError())
 
 function getindex(A::OEContArray, i::Integer)
-    prepare_block(A, i)
+    prepare_block!(A, i)
     relidx = sampno_to_offset(i)
     data = block_data(A, relidx)
     return convert_data(A, data)
@@ -170,12 +170,12 @@ end
 
 ### Array helper functions ###
 "Load data block if necessary"
-function prepare_block(A::OEContArray, i::Integer)
+function prepare_block!(A::OEContArray, i::Integer)
     blockno = sampno_to_block(i)
     if blockno != A.blockno
         seek_to_block(A.contfile.io, blockno)
         goodread = read_into!(A.contfile.io, A.block, A.check)
-        goodread || throw(CorruptedException)
+        goodread || throw(CorruptedException())
         A.blockno = blockno
     end
 end
