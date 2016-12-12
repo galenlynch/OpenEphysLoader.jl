@@ -1,4 +1,8 @@
-using OpenEphysLoader, Base.Test
+module TestOriginal
+using OpenEphysLoader, TestUtilities, Base.Test
+
+export write_fheader_fun,
+    verify_header
 
 ### Helper functions ###
 function write_bad_fheader(badtype::Symbol, nbytes::Integer = 1024)
@@ -46,28 +50,30 @@ function verify_header(header::OriginalHeader)
 end
 
 ### Tests ###
-# matread
+@testset "OriginalHeader" begin
+    # OriginalHeader constructor
+    filecontext(write_fheader_fun()) do io
+        header = OriginalHeader(io)
+        verify_header(header)
+    end
 
-# OriginalHeader constructor
-filecontext(write_fheader_fun()) do io
-    header = OriginalHeader(io)
-    verify_header(header)
+    # truncated header
+    filecontext(write_fheader_fun(512)) do io
+        @test_throws CorruptedException OriginalHeader(io)
+    end
+
+    # Header with bad content
+    filecontext(write_bad_fheader(:noise)) do io
+        @test_throws CorruptedException OriginalHeader(io)
+    end
+
+    filecontext(write_bad_fheader(:version)) do io
+        @test_throws CorruptedException OriginalHeader(io)
+    end
+
+    filecontext(write_bad_fheader(:format)) do io
+        @test_throws CorruptedException OriginalHeader(io)
+    end
 end
 
-# truncated header
-filecontext(write_fheader_fun(512)) do io
-    @test_throws CorruptedException OriginalHeader(io)
-end
-
-# Header with bad content
-filecontext(write_bad_fheader(:noise)) do io
-    @test_throws CorruptedException OriginalHeader(io)
-end
-
-filecontext(write_bad_fheader(:version)) do io
-    @test_throws CorruptedException OriginalHeader(io)
-end
-
-filecontext(write_bad_fheader(:format)) do io
-    @test_throws CorruptedException OriginalHeader(io)
 end

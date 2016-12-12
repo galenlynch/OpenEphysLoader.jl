@@ -6,7 +6,13 @@ Provides array interfaces to file contents, without loading the entire file into
 """
 module OpenEphysLoader
 # Module to interact with Open Ephys files
-import Base: show, showcompact, size, linearindexing, getindex, setindex!, length
+import Base: show,
+    showcompact,
+    size,
+    linearindexing,
+    getindex,
+    setindex!,
+    length
 
 export
     # types

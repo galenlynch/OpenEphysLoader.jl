@@ -1,5 +1,18 @@
-using OpenEphysLoader, Base.Test
-# Helper functions to test OpenEphysLoader's handling of continuous files
+module TestContinuous
+using OpenEphysLoader, TestUtilities, TestOriginal, Base.Test
+# Helper functions to test OpenEphysLoader's handling of
+# continuous files
+
+export test_OEContArray,
+    to_block_contents,
+    verify_BlockBuffer,
+    damaged_file,
+    write_continuous,
+    bad_blockhead,
+    bad_blocktail,
+    rand_block_data,
+    to_OE_bytes,
+    bad_file
 
 ### Test array contents ###
 function test_OEContArray{T<:OEContArray}(
@@ -237,7 +250,10 @@ function write_continuous{T<:Integer}(
     for blockno in 1:nblock
         writeblock(
             io,
-            view(padded, offset + (1:OpenEphysLoader.CONT_REC_N_SAMP)),
+            view(
+                padded,
+                offset + (1:OpenEphysLoader.CONT_REC_N_SAMP)
+            ),
             tblock,
             recno
         )
@@ -331,4 +347,6 @@ function rand_block_data()
         OpenEphysLoader.CONT_REC_SAMP_BITTYPE,
         OpenEphysLoader.CONT_REC_N_SAMP
     )
+end
+
 end

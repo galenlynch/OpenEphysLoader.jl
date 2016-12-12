@@ -1,5 +1,4 @@
 using Base.Test
-
 @testset "OpenEphysLoader.jl" begin
     include("util.jl")
     include("original.jl")
