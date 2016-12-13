@@ -15,5 +15,8 @@ makedocs(
 
 deploydocs(
     repo = "https://github.com/galenlynch/OpenEphysLoader.jl",
-    julia = "0.5"
+    target = "build",
+    julia = "0.5",
+    deps = nothing,
+    make = nothing
 )
