@@ -37,3 +37,6 @@ Please open an issue if you encounter any problems.
 
 [appveyor-img]: https://ci.appveyor.com/api/projects/status/egdu3hrptf3mnfc6/branch/master?svg=true
 [appveyor-url]: https://ci.appveyor.com/project/galenlynch/openephysloader-jl
+
+[codecov-img]: https://codecov.io/gh/galenlynch/OpenEphysLoader.jl/branch/master/graph/badge.svg
+[codecov-url]: https://codecov.io/gh/galenlynch/OpenEphysLoader.jl
