@@ -12,3 +12,7 @@ notifications:
 
 git:
   depth: 99999
+
+after_success:
+  - julia -e 'Pkg.add("Documenter")'
+  - julia -e 'cd(Pkg.dir("OpenEphysLoader")); include(joinpath("docs", "make.jl"))'
