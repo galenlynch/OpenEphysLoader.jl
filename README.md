@@ -1,6 +1,6 @@
 # OpenEphysLoader.jl
 
-*A set of tools to load data written by the OpenEphys GUI*
+*A set of tools to load data written by the [Open Ephys GUI](http://www.open-ephys.org/gui/)*
 
 | **Documentation**                                                                 | **PackageEvaluator**              | **Build Status**                                                                                  |
 | :-------------------------------------------------------------------------------: | :-------------------------------: | :-----------------------------------------------------------------------------------------------: |
@@ -10,6 +10,11 @@
 Julia 0.5 or higher
 
 ## Installation
+This package is not yet registered, so for now install the package by cloning this repository.
+
+```julia
+julia> Pkg.clone("https://github.com/galenlynch/OpenEphysLoader.jl.git")
+```
 
 ## Documentation
 - [**STABLE**][docs-stable-url] &mdash; **most recently tagged version of the documentation.**
