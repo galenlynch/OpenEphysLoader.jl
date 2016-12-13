@@ -1,9 +1,9 @@
 # OpenEphysLoader.jl
 
 *A set of tools to load data written by the OpenEphys GUI*
- **Build Status**                                                                                  |
- :-----------------------------------------------------------------------------------------------: |
- [![][travis-img]][travis-url] [![][appveyor-img]][appveyor-url] [![][codecov-img]][codecov-url]   |
+ |**Build Status**                                                                                  |
+ |:-----------------------------------------------------------------------------------------------: |
+ |[![][travis-img]][travis-url] [![][appveyor-img]][appveyor-url] [![][codecov-img]][codecov-url]   |
 
 ## Requirements
 Julia 0.5 or higher
