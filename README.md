@@ -2,7 +2,7 @@
 
 *A set of tools to load data written by the OpenEphys GUI*
 
- | **Documentation**                                                               | **Build Status**                                                                                |
+ | Documentation                                                                   | Build Status                                                                                    |
  | :-----------------------------------------------------------------------------: | :---------------------------------------------------------------------------------------------: |
  | [![][docs-stable-img]][docs-stable-url] [![][docs-latest-img]][docs-latest-url] | [![][travis-img]][travis-url] [![][appveyor-img]][appveyor-url] [![][codecov-img]][codecov-url] |
 
