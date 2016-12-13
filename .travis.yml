@@ -16,4 +16,4 @@ git:
 after_success:
   - julia -e 'Pkg.add("Documenter")'
   - julia -e 'cd(Pkg.dir("OpenEphysLoader")); include(joinpath("docs", "make.jl"))'
-  - bash <(curl -s https://codecov.io/bash)
+  - julia -e 'cd(Pkg.dir("OpenEphysLoader")); Pkg.add("Coverage"); using Coverage; Codecov.submit(Codecov.process_folder())'
