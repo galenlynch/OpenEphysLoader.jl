@@ -2,9 +2,9 @@
 
 *A set of tools to load data written by the OpenEphys GUI*
 
-| **Documentation**                                                                 | **PackageEvaluator**            | **Build Status**                                                                                  |
-| :-------------------------------------------------------------------------------: | :-----------------------------: | :-----------------------------------------------------------------------------------------------: |
-| [![][docs-stable-img]][docs-stable-url] [![][docs-latest-img]][docs-latest-url]   | [![][pkg-0.5-img][pkg-0.5-url]  | [![][travis-img]][travis-url] [![][appveyor-img]][appveyor-url] [![][codecov-img]][codecov-url]   |
+| **Documentation**                                                                 | **PackageEvaluator**              | **Build Status**                                                                                  |
+| :-------------------------------------------------------------------------------: | :-------------------------------: | :-----------------------------------------------------------------------------------------------: |
+| [![][docs-stable-img]][docs-stable-url] [![][docs-latest-img]][docs-latest-url]   | [![][pkg-0.5-img]][pkg-0.5-url]   | [![][travis-img]][travis-url] [![][appveyor-img]][appveyor-url] [![][codecov-img]][codecov-url]   |
 
 ## Requirements
 Julia 0.5 or higher
