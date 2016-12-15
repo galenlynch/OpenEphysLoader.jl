@@ -29,6 +29,8 @@ plans to support spike data.
 ## Contributing
 Contributions are welcome, as are feature requests and suggestions.
 
+Pull requests should be against the develop branch, as per the [Gitflow](https://www.atlassian.com/git/tutorials/comparing-workflows/gitflow-workflow) work flow.
+
 Please open an issue if you encounter any problems.
 
 [docs-latest-img]: https://img.shields.io/badge/docs-latest-blue.svg
