@@ -6,13 +6,15 @@ Provides array interfaces to file contents, without loading the entire file into
 """
 module OpenEphysLoader
 # Module to interact with Open Ephys files
+using LightXML
 import Base: show,
     showcompact,
     size,
     linearindexing,
     getindex,
     setindex!,
-    length
+    length,
+    LightXML: parse_file
 
 export
     # types
@@ -27,6 +29,7 @@ export
     CorruptedException
 
 ## source files
+include("metadata.jl")
 include("original.jl")
 include("continuous.jl")
 
