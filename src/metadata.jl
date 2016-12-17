@@ -15,38 +15,55 @@ immutable OERhythmProcessor{T<:OEChannel} <: OEProcessor{T}
     highcut::Float64
     adcs_on::Bool
     noiseslicer::Bool
+    ttl_fastsettle::Bool
     dac_ttl::Bool
     dac_hpf::Bool
     dsp_offset::Bool
     dsp_cutoff::Float64
 end
 function OERhythmProcessor(proc_e::LightXML.XMLElement)
-    # Assumes that channels are sorted!
-    id = attribute(proc_e, "NodeId", required = true)
+    id_attr = attribute(proc_e, "NodeId", required = true)
+    id = parse(Int, id_attr)
 
-    # Channel info
-    ch_info_e = find_element(proc_e, "CHANNEL_INFO")
-    isa(ch_info_e, Void) && error("Could not find CHANNEL_INFO element")
-    chinfo_children = collect(child_elements(ch_info_e))
-    channels = Array{OEChannel}(length(chan_children))
-    for i, chan_e in enumerate(chinfo_children)
-        chno_attr = attribute(chan_e, "number", required = true)
-        chno = parse(Int, chno_attr)
-        chname = attribtue(chan_e, "name", required = true)
-        bitvolt_attr = attribute(chan_e, "gain", required = true)
-        bitvolts = parse(Float64, bitvolt_attr)
-        channels[i] = OEChannel{String}(chname, chno, bitvolts, 0, "")
-    end
+    channels = channel_arr(proc_e)
 
-    # Channels
-    channel_vec = get_elements_by_tagname(proc_e, "CHANNEL")
-    isempty(channel_vec) && error("Could not find CHANNEL elements")
-    chan_rec = bitarray()
-    for i, chan_e in enumerate(channel_vec)
-        sel_e = find_element(chan_e, "SELECTIONSTATE")
-        isa(sel_e, Void) && error("Could not find SELECTIONSTATE element")
-        recording = attribute(sel_e, "record", required=true)
-    end
+    # Editor
+    editor_e = find_element(proc_e, "EDITOR")
+    isa(editor_e, Void) && error("Could not find EDITOR element")
+    ## Get attribute strings
+    lowcut_attr = attribute(editor_e, "LowCut", required=true)
+    highcut_attr = attribute(editor_e, "HighCut", required=true)
+    adcs_on_attr = attribute(editor_e, "ADCsOn", required=true)
+    noiseslicer_attr = attribute(editor_e, "NoiseSlicer", required=true)
+    ttl_fastsettle_attr = attribute(editor_e, "TTLFastSettle", required=true)
+    dac_ttl_attr = attribute(editor_e, "DAC_TTL", required=true)
+    dac_hpf_attr = attribute(editor_e, "DAC_HPF", required=true)
+    dsp_offset_attr = attribute(editor_e, "DSPOffset", required=true)
+    dsp_cutoff_attr = attribute(editor_e, "DSPCutoffFreq", required=true)
+    ## parse attribute strings
+    lowcut = parse(Float64, lowcut_attr)
+    highcut = parse(Float64, highcut_attr)
+    adcs_on = parse(Int, adcs_on_attr) == 1
+    noiseslicer = parse(Int, noiseslicer_attr) == 1
+    ttl_fastsettle = parse(Int, ttl_fastsettle_attr) == 1
+    dac_ttl = parse(Int, dac_ttl_attr) == 1
+    dac_hpf = parse(Int, dac_hpf_attr) == 1
+    dsp_offset = parse(Int, dsp_offset_attr) == 1
+    dsp_cutoff = parse(Float64, dsp_cutoff_attr)
+
+    return OERhythmProcessor(
+        id,
+        channels,
+        lowcut,
+        highcut,
+        adcs_on,
+        noiseslicer,
+        ttl_fastsettle,
+        dac_ttl,
+        dac_hpf,
+        dsp_offset,
+        dsp_cutoff
+    )
 end
 
 abstract TreeNode
@@ -150,4 +167,49 @@ function parse_file(f::Function, args...)
     finally
         free(xdoc)
     end
+end
+
+function channel_arr(proc_e::LightXML::XMLElement)
+    # Assumes that channels are sorted!
+    # Channels
+    channel_vec = get_elements_by_tagname(proc_e, "CHANNEL")
+    isempty(channel_vec) && error("Could not find CHANNEL elements")
+    nchan = length(channel_vec)
+    chan_rec = fill(false, nchan)
+    chnos = Array{Int}(nchan)
+    for i, chan_e in enumerate(channel_vec)
+        sel_e = find_element(chan_e, "SELECTIONSTATE")
+        isa(sel_e, Void) && error("Could not find SELECTIONSTATE element")
+        record_attr = attribute(sel_e, "record", required=true)
+        record = parse(Int, bitvolt_attr)
+        record == 1 && chan_rec[i] = true
+        if chan_rec[i]
+            chno_attr = attribute(chan_e, "number", required=true)
+            chno = parse(Int, chno_attr)
+            chnos[i] = chno
+        end
+    end
+    nrec = sum(chan_rec)
+
+    # Channel info
+    ch_info_e = find_element(proc_e, "CHANNEL_INFO")
+    isa(ch_info_e, Void) && error("Could not find CHANNEL_INFO element")
+    chinfo_children = collect(child_elements(ch_info_e))
+    channels = Array{OEChannel}(nrec)
+    recno = 1
+    for i, chan_e in enumerate(chinfo_children)
+        if chan_rec[i]
+            info_chno_attr = attribute(chan_e, "number", required = true)
+            info_chno = parse(Int, info_chno_attr)
+            @assert info_chno == chnos[i] "Channels not in same order"
+            chname = attribtue(chan_e, "name", required = true)
+            bitvolt_attr = attribute(chan_e, "gain", required = true)
+            bitvolts = parse(Float64, bitvolt_attr)
+            channels[recno] =
+                OEChannel{String}(chname, info_chno, bitvolts, 0, "")
+            recno += 1
+        end
+    end
+
+    return channels
 end
