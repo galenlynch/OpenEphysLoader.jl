@@ -11,7 +11,7 @@ notifications:
   email: false
 
 git:
-  depth: 99999
+  depth: 3
 
 after_success:
   - julia -e 'Pkg.add("Documenter")'
