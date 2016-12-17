@@ -6,13 +6,6 @@ immutable OEChannel{T<:AbstractString}
     position::Int
     filename::T
 end
-function OEChannel{T<:AbstractString}(
-    name::T,
-    number::Int,
-    bitvolts::Float64
-)
-    return OEChannel{T}(name, number, bitvolts, 0, T(""))
-end
 
 abstract OEProcessor{T<:OEChannel}
 immutable OERhythmProcessor{T<:OEChannel} <: OEProcessor{T}
@@ -28,21 +21,32 @@ immutable OERhythmProcessor{T<:OEChannel} <: OEProcessor{T}
     dsp_cutoff::Float64
 end
 function OERhythmProcessor(proc_e::LightXML.XMLElement)
+    # Assumes that channels are sorted!
     id = attribute(proc_e, "NodeId", required = true)
+
+    # Channel info
     ch_info_e = find_element(proc_e, "CHANNEL_INFO")
-    isempty(ch_info_e) && error("Could not find CHANNEL_INFO element")
-    chan_children = collect(child_elements(ch_info_e))
-    chans = Array{OEChannel}(length(chan_children))
-    for i, chan_e in enumerate(chan_children)
+    isa(ch_info_e, Void) && error("Could not find CHANNEL_INFO element")
+    chinfo_children = collect(child_elements(ch_info_e))
+    channels = Array{OEChannel}(length(chan_children))
+    for i, chan_e in enumerate(chinfo_children)
         chno_attr = attribute(chan_e, "number", required = true)
         chno = parse(Int, chno_attr)
         chname = attribtue(chan_e, "name", required = true)
         bitvolt_attr = attribute(chan_e, "gain", required = true)
         bitvolts = parse(Float64, bitvolt_attr)
-        chans[i] = OEChannel(chname, chno, bitvolts)
+        channels[i] = OEChannel{String}(chname, chno, bitvolts, 0, "")
     end
 
-
+    # Channels
+    channel_vec = get_elements_by_tagname(proc_e, "CHANNEL")
+    isempty(channel_vec) && error("Could not find CHANNEL elements")
+    chan_rec = bitarray()
+    for i, chan_e in enumerate(channel_vec)
+        sel_e = find_element(chan_e, "SELECTIONSTATE")
+        isa(sel_e, Void) && error("Could not find SELECTIONSTATE element")
+        recording = attribute(sel_e, "record", required=true)
+    end
 end
 
 abstract TreeNode
@@ -109,10 +113,10 @@ function OESettings(xdoc::LightXML.XMLDocument)
     settings_e = root(xdoc)
     @assert name(settings_e) == "SETTINGS" "Not a settings xml"
     info_e = find_element(settings_e, "INFO")
-    isempty(info_e) && error("Could not find INFO element")
+    isa(info_e, Void) && error("Could not find INFO element")
     info = OEInfo(info_e)
     chain_e = find_element(settings_e, "SIGNALCHAIN")
-    isempty(chain_e) && error("Could not find SIGNALCHAIN element")
+    isa(chain_e, Void) && error("Could not find SIGNALCHAIN element")
     signaltree = OESignalTree(chain_e)
     return OESettings(info, signaltree)
 end
