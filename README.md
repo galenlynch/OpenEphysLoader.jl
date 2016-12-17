@@ -10,10 +10,10 @@
 Julia 0.5 or higher
 
 ## Installation
-This package is not yet registered, so for now install the package by cloning this repository.
+This package is registered, so simply install it with the package manager:
 
 ```julia
-julia> Pkg.clone("https://github.com/galenlynch/OpenEphysLoader.jl.git")
+julia> Pkg.add("OpenEphysLoader")
 ```
 
 ## Documentation
