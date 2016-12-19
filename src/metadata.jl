@@ -7,10 +7,10 @@ immutable OEChannel{T<:AbstractString}
     filename::T
 end
 
-abstract OEProcessor{T<:OEChannel}
-immutable OERhythmProcessor{T<:OEChannel} <: OEProcessor{T}
+abstract OEProcessor{T<:AbstractString}
+immutable OERhythmProcessor{T<:AbstractString} <: OEProcessor{T}
     id::Int
-    channels::Vector{T}
+    channels::Vector{OEChannel{T}}
     lowcut::Float64
     highcut::Float64
     adcs_on::Bool
@@ -66,23 +66,23 @@ function OERhythmProcessor(proc_e::LightXML.XMLElement)
     )
 end
 
-abstract TreeNode
-type SignalNode{T<:OEProcessor} <: TreeNode
-    processor::T
+abstract TreeNode{T}
+type SignalNode{S<:AbstractString, T<:OEProcessor{S}} <: TreeNode{T}
+    content::T
     parent::Int
     children::Vector{Int}
 end
 
-abstract Tree
-immutable OESignalTree{T<:SignalNode} <: Tree
-    signalnodes::Array{T}
+abstract Tree{T}
+immutable OESignalTree{S<:AbstractString, T<:OEProcessor{S}} <: Tree{T}
+    nodes::Vector{SignalNode{S, T}}
 end
 function OESignalTree(
     chain_e::LightXML.XMLElement;
     recording_names = Set([RHYTHM_PROC])
     )
-    children = child_elements(chain_e)
-    for ch_e in children # Break at first recording processor!
+    childs = child_elements(chain_e)
+    for ch_e in childs # Break at first recording processor!
         if name(ch_e) == "PROCESSOR"
             procname = attribute(ch_e, "name", required = true)
             if procname in recording_names
@@ -90,16 +90,105 @@ function OESignalTree(
                     proc = OERhtymProcessor(ch_e)
                     signode = SignalNode(proc, 0, Vector{Int}())
                     return OESignalTree([signode])
-                break
+                end
             end
         end
     end
 end
+# Taken from Scott Jones' StackOverflow answer on 4/13/2016
+function addchild(tree::OESignalTree, id::Int, processor::OEProcessor)
+    1 <= id <= length(tree.nodes) || throw(BoundsError(tree, id))
+    push!(tree.nodes, SignalNode(processor, id, Vector{Int}()))
+    child_id = length(tree.nodes)
+    push!(tree.nodes[id].children, child_id)
+    return child
+end
+children(tree::Tree, id::Int) = tree.nodes[id].children
+parent(tree::Tree, id::Int) = tree.nodes[id].parent
+function find_by(pred::Function, tree::Tree)
+    return find_by(pred, tree, 1)
+end
+function find_by(pred::Function, tree::Tree, id::Int)
+    if pred(tree.nodes[id].content)
+        return id
+    else
+        for child in children(tree, id)
+            maybe_match = find_by(pred, tree, child)
+            if ! isempty(maybe_match)
+                return maybe_match
+            end
+        end
+    end
+    return Array{Int}() # Didn't find a match
+end
 
-immutable OERecordingMeta{T<:OEProcessor}
+immutable OERecordingMeta{S<:AbstractString, T<:OEProcessor{S}}
     number::Int
     samplerate::Float64
     recording_processors::Vector{T}
+end
+function OERecordingMeta{S, T}(
+        settings::OESettings{S, T}, rec_e::LightXML.XMLElement)
+    no_attr = attribute(rec_e, "number", required=true)
+    number = parse(Int, no_atter)
+    samprate_attr = attribtue(rec_e, "samplerate", required=true)
+    samplerate = parse(Float64, samprate_attr)
+
+    proc_es = get_elements_by_tagname(rec_e, "PROCESSOR")
+    isempty(proc_es) && error("Could not find PROCESSOR elements")
+    nproc = length(proc_es)
+    rec_procs = Vector{T}(nproc)
+
+    return OERecordingMeta(number, samplerate, rec_procs)
+end
+
+function add_continuous_meta!{S, T}(
+    settings::OESettings{S, T},
+    exper_e::LightXML.XMLElement
+)
+    rec_es = get_elements_by_tagname(exper_e, "RECORDING")
+    length(rec_es) != 1 && error("Need to change this logic...")
+    rec_e = rec_es[1]
+    proc_es = get_elements_by_tagname(rec_e, "PROCESSOR")
+    isempty(proc_es) && error("Could not find PROCESSOR elements")
+    for i, proc_e in enumerate(proc_es)
+        match_id = find_matching_proc(settings.recording_chain,
+                                      proc_e)
+        add_continuous_meta!(settings.recording_chain.nodes[match_id])
+    end
+end
+function add_continuous_meta!(
+    proc::OERhythmProcessor,
+    proc_e::LightXML.XMLElement
+)
+    chan_es = get_elements_by_tagname(proc_e, "CHANNEL")
+    isempty(chan_es) && error("Could not find CHANNEL elements")
+    for i, chan_e in enumerate(chan_es)
+        name = attribute(chan_e, "name", required=true)
+        name == proc.channels[i].name || error("Channel names don't match!")
+        filename = attribute(chan_e, "filename", required=true)
+        position_attr = attribute(chan_e, "position", required=true)
+        position = parse(Int, position_attr)
+        proc.channels[i] = OEChannel(
+            proc.channels[i].name,
+            proc.channels[i].number,
+            proc.channels[i].bitvolts,
+            position,
+            filename
+        )
+    end
+end
+
+function find_matching_proc(
+    sig_chain::OESignalTree,
+    proc_e::LightXML.XMLElement
+)
+    proc_id_attr = attribute(proc_e, "id", required=true)
+    proc_id = parse(Int, proc_id_attr)
+    pred = x::OERhythmProcessor -> x.id == proc_id
+    maybe_match = find_by(pred, sig_chain)
+    isempty(maybe_match) && error("Could not find matching processor")
+    return maybe_match[1]
 end
 
 immutable OEInfo{T<:AbstractString}
@@ -121,10 +210,10 @@ function OEInfo(info_e::LightXML.XMLElement)
                   contents[5])
 end
 
-immutable OESettings{T<:OEInfo, U<:OESignalTree}
-    info::T
+immutable OESettings{S<:AbstractString, T<:OEProcessor{S}}
+    info::OEInfo{S}
     # only processors that lead to recording nodes
-    recording_signalchain::U
+    recording_chain::OESignalTree{S, T}
 end
 function OESettings(xdoc::LightXML.XMLDocument)
     settings_e = root(xdoc)
@@ -138,12 +227,51 @@ function OESettings(xdoc::LightXML.XMLDocument)
     return OESettings(info, signaltree)
 end
 
-immutable OEExperMeta{T<:OERecordingMeta}
+immutable OEExperMeta{S<:AbstractString, T<:OEProcessor{S}}
     version::VersionNumber
-    experimentNumber::Int
-    separateFiles::Bool
-    recordings::Vector{T}
-    settings::OESettings
+    experiment_number::Int
+    separate_files::Bool
+    recordings::Vector{OERecordingMeta{S, T}}
+    settings::OESettings{S, T}
+end
+function OEExperMeta{S, T}(
+    settings::OESettings{S, T},
+    exper_e::LightXML.XMLElement
+)
+    # Open document and find EXPERIMENT element
+    exper_e = root(xdoc)
+
+    # Get version
+    ver_attr = attribute(exper_e, "version", required=true)
+    ## Version numbers in OE files are floats, often see 0.400000000000002
+    ## Need to extract the "meaningful" part
+    ver_reg = r"^(\d+)\.([1-9]\d*?)0*?\d?$"
+    m = match(ver_reg, ver_attr)
+    ver_str = string(m.match[1], '.', m.match[2])
+    ver = VersionNumber(ver_str)
+
+    # Get number
+    no_attr = attribtue(exper_e, "number", required=true)
+    exper_no = parse(Int, no_attr)
+
+    # Get separatefiles
+    separate_attr = attribute(exper_e, "separatefile", required=true)
+    separate_files = parse(Int, separate_attr) == 1
+
+    # get recordings
+    rec_es = get_elements_by_tagame(exper_e, "RECORDING")
+    isempty(rec_es) && error("Could not find RECORDING elements")
+    nrec = length(rec_es)
+    recordings = Vector{OERecordingMeta{S, T}}(nrec)
+    for i, rec_e in enumerate(rec_es)
+        recodings[i] = OERecordingMeta(settings, rec_e)
+    end
+
+    return OEExperMeta(version,
+                       exper_no,
+                       separate_files,
+                       recordings,
+                       settings)
 end
 
 function dir_settings(dirpath::AbstractString = pwd();
@@ -152,12 +280,16 @@ function dir_settings(dirpath::AbstractString = pwd();
     settingspath = joinpath(dirpath, settingsfile)
     isfile(settingspath) || error("$settingspath does not exist")
     continuouspath = joinpath(dirpath, continuousmeta)
-    isfile(continuouspath) ||
-        error("$continuouspath does not exist")
-    settingsdoc = parse_file(settingspath)
-    continuousdoc = parse_file(continuouspath)
-
-    return OEExperMeta
+    isfile(continuouspath) || error("$continuouspath does not exist")
+    parse_file(settingspath) do settingsdoc
+        settings = OESettings(settingsdoc)
+        parse_file(continuouspath) do contdoc
+            exper_e = root(contdoc)
+            add_continuous_meta!(settings, exper_e)
+            exper_meta = OEExperMeta(settings, exper_e)
+        end
+    end
+    return exper_meta
 end
 
 function parse_file(f::Function, args...)
