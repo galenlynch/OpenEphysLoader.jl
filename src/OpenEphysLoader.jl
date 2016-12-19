@@ -13,12 +13,20 @@ import Base: show,
     linearindexing,
     getindex,
     setindex!,
-    length,
-    LightXML: parse_file
+    length
+import LightXML: parse_file
 
 export
-    # types
+    # Package wide
+    ## Exceptions
+    CorruptedException,
+
+    # Original binary format
+    ## Types
     OriginalHeader,
+
+    # Continuous data file
+    ## Types
     ContinuousFile,
     OEArray,
     OEContArray,
@@ -26,7 +34,13 @@ export
     TimeArray,
     RecNoArray,
     JointArray,
-    CorruptedException
+
+    # Metadata for continuous files
+    ## Types
+    OEExperMeta,
+    OESettings,
+    ## Functions
+    dir_settings
 
 ## source files
 include("metadata.jl")
