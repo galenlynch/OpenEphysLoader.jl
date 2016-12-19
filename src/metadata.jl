@@ -380,11 +380,24 @@ end
 show(io::IO, a::OESettings) = showfields(io, a)
 show(io::IO, a::OEInfo) = showfields(io, a)
 show(io::IO, a::OEExperMeta) = showfields(io, a)
-show(io::IO, a::OERecordingMeta) = showfields(io, a)
+function show(io::IO, a::OERecordingMeta)
+    compact = get(io, :compact, false)
+    if compact
+        print(io, "recording $(a.number)")
+    else
+        showfields(io, a)
+    end
+end
 show(io::IO, a::OEProcessor) = showfields(io, a)
-show(io::IO, a::OEChannel) = showfields(io, a)
+function show(io::IO, a::OEChannel)
+    compact = get(io, :compact, false)
+    if compact
+        print(io, a.name)
+    else
+        showfields(io, a)
+    end
+end
 show(io::IO, a::SignalNode) = show(io, a.content)
-showcompact(io::IO, a::OEChannel) = show(io, "channel: $(a.name)")
 
 showfields(io::IO, a::Any) = showfields(IOContext(io, :depth => 0), a)
 function showfields(io::IOContext, a::Any)
