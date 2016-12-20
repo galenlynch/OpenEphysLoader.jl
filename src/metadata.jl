@@ -382,20 +382,12 @@ show(io::IO, a::OEInfo) = showfields(io, a)
 show(io::IO, a::OEExperMeta) = showfields(io, a)
 function show(io::IO, a::OERecordingMeta)
     compact = get(io, :compact, false)
-    if compact
-        print(io, "recording $(a.number)")
-    else
-        showfields(io, a)
-    end
+    compact ? print(io, "recording $(a.number)") : showfields(io, a)
 end
 show(io::IO, a::OEProcessor) = showfields(io, a)
 function show(io::IO, a::OEChannel)
     compact = get(io, :compact, false)
-    if compact
-        print(io, a.name)
-    else
-        showfields(io, a)
-    end
+    compact ? print(io, a.name) : showfields(io, a)
 end
 show(io::IO, a::SignalNode) = show(io, a.content)
 
@@ -404,9 +396,7 @@ function showfields(io::IOContext, a::Any)
     depth = get(io, :depth, 0)
     pad = string(("  " for n = 1:depth)...)
     fields = fieldnames(a)
-    if depth > 0
-        print(io, '\n')
-    end
+    depth > 0 && print(io, '\n')
     next_io = IOContext(io, :depth => depth + 1)
     for field in fields
         print(io, pad, "$field: ")
