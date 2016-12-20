@@ -2,6 +2,22 @@ const DATEFORMATSTR = "d u y H:M:S"
 const RHYTHM_PROC = "Sources/Rhythm FPGA"
 
 ### Types ###
+"""
+    OEChannel{T<:AbstractString}
+Type for continuous recording channel metadata
+
+# Fields
+
+**`name`** `T<:AbstractString` of channel name
+
+**`number`** `Int` of channel number in GUI
+
+**`bitvolts`** `Float64` of volts per ADC bit
+
+**`position`** `Int` Position in drive?
+
+**`filename`** `T<:AbstractString` name of associated `.continuous` file
+"""
 immutable OEChannel{T<:AbstractString}
     name::T
     number::Int
@@ -10,7 +26,42 @@ immutable OEChannel{T<:AbstractString}
     filename::T
 end
 
+"""
+    OEProcessor{T<:AbstractString}
+Abstract type for recording Open Ephys processors.
+"""
 abstract OEProcessor{T<:AbstractString}
+
+"""
+    OERhythmProcessor{T<:AbstractString}(proc_e::LightXML.XMLElement)
+Type for Rhythm processor metadata, subtype of [`OEProcessor`](@ref).
+
+Construct with XML element for processor.
+
+# Fields
+
+**`id`** `Int` of processor ID in GUI
+
+**`lowcut`** `Float64` of low pass filter cutoff on headstages
+
+**`highcut`** `Float64` of high pass filter cutoff on headstages
+
+**`adcs_on`** `Bool` `true` if ADCs on
+
+**`noiseslicer`** `Bool` `true` if noiseslicer used for ADC
+
+**`ttl_fastsettle`** `Bool` `true` if TTL fast settle used
+
+**`dac_ttl`** `Bool` `true` if dac ttl is on
+
+**`dac_hpf`** `Bool` `true` if dac hpf is on
+
+**`dsp_offset`** `Bool` `true` if headstage DSP offset removal is used
+
+**`dsp_cutoff`** `Float64` of DSP high pass filter cutoff
+
+**`channels`** `Vector{OEChannel{T}}` list of [`OEChannel`](@ref) in Rhythm processor
+"""
 immutable OERhythmProcessor{T<:AbstractString} <: OEProcessor{T}
     id::Int
     lowcut::Float64
@@ -68,14 +119,55 @@ function OERhythmProcessor(proc_e::LightXML.XMLElement)
     )
 end
 
+"""
+    TreeNode{T}
+Abstract node type for tree structure, with type `T` content.
+
+Subtypes must have the following fields:
+
+# Required Fields
+
+**`content`** `T` content of node.
+
+**`parent`** `Int` ID of parent node
+
+**`children`** `Vector{Int}` IDs of children node
+"""
 abstract TreeNode{T}
+
+"""
+    SignalNode{T<:OEProcessor}
+Node type for OEProcessor signal chain, subtype of [`TreeNode`](@ref).
+
+See [`TreeNode`](@ref) for information on fields.
+"""
 type SignalNode{T<:OEProcessor} <: TreeNode{T}
     content::T
     parent::Int
     children::Vector{Int}
 end
 
+"""
+    Tree{T}
+Abstract type for tree structure, with type `T` content.
+
+Contains a group of [`TreeNode`](@ref) in the single required field:
+
+# Required Fields
+
+**`nodes`** Indexable list of [`TreeNode`](@ref) elements.
+"""
 abstract Tree{T}
+
+"""
+    OESignalTree{T<:OEProcessor}(chain_e::LightXML.XMLElement, [recording_anmes::Set])
+
+Signal tree for recording processors. Since [`OpenEphysLoader`](@ref) currently on works on `.continuous` file types, this will search for the first [`OERhythmProcessor`](@src) and make a signal tree up to that point.
+
+Construct with a XML signalchain element, and a set of processor names that are valid recording nodes.
+
+See [`Tree`](@ref) for field information.
+"""
 immutable OESignalTree{T<:OEProcessor} <: Tree{T}
     nodes::Vector{SignalNode{T}}
 end
@@ -98,8 +190,27 @@ function OESignalTree(
     end
 end
 
+"""
+    OEInfo{T<:AbstractString}(info_e::LigthXML.XMLElement)
+
+Type to represent the info element in `settings.xml` made by Open Ephys.
+
+Construct with the XML info element.
+
+# Fields
+
+**`gui_version`** `VersionNumber` GUI version
+
+**`plugin_api_version`** `VersionNumber` plugin API version. If `gui_version` is less than `0.4.0` then this will be `0`
+
+**`datetime`** `DateTime` date and time that `settings.xml` was made
+
+**`os`** `T` Operating system of computer running GUI
+
+**`machine`** `T` hostname of computer running GUI
+"""
 immutable OEInfo{T<:AbstractString}
-    version::VersionNumber
+    gui_version::VersionNumber
     plugin_api_version::VersionNumber
     datetime::DateTime
     os::T
@@ -127,6 +238,18 @@ function OEInfo(info_e::LightXML.XMLElement)
                   machine)
 end
 
+"""
+    OESettings{S<:AbstractString, T<:OEProcessor}(xdoc::LightXML.XMLDocument)
+Type to represent information in the `settings.xml` file made by the Open Ephys GUI.
+
+Construct with the XML document for `settings.xml`
+
+# Fields
+
+**`info`** [`OEInfo`](@ref) GUI info.
+
+**`recording_chain`** [`OESignalTree`](@ref) Signal tree that leads to recording processors.
+"""
 immutable OESettings{S<:AbstractString, T<:OEProcessor}
     info::OEInfo{S}
     # only processors that lead to recording nodes
@@ -142,6 +265,20 @@ function OESettings(xdoc::LightXML.XMLDocument)
     return OESettings(info, signaltree)
 end
 
+"""
+    OERecordingMeta{T<:OEProcessor}(settings::OESettings, rec_e::LightXML.XMLElement)
+Type that represents recording metadata in `Continuous_Data.openephys` file made by the Open Ephys GUI.
+
+Construct with a [`OESettings`](@ref) from the `settings.xml` file, and the XML recording element of the `Continuous_Data.openephys` file.
+
+# Fields
+
+**`number`** `Int` Recording number
+
+**`samplerate`** `Float64` Sampling rate
+
+**`recording_processors`** `Vector{T}` list of recording processors
+"""
 immutable OERecordingMeta{T<:OEProcessor}
     number::Int
     samplerate::Float64
@@ -170,8 +307,18 @@ function OERecordingMeta{S, T}(
     return OERecordingMeta(number, samplerate, rec_procs)
 end
 
+"""
+    OEExperMeta{S<:AbstractString, T<:OEProcessor}(s::OESettings, exper::LightXML.XMLElement)
+Type to represent the Experiment metadata in `Continuous_Data.openephys`.
+
+Construct with the [`OESettings`](@ref) from `settings.xml` and XML experiment element.
+
+# Fields
+
+**`file_version`** `VersionNumber` continuous format version
+"""
 immutable OEExperMeta{S<:AbstractString, T<:OEProcessor}
-    version::VersionNumber
+    file_version::VersionNumber
     experiment_number::Int
     separate_files::Bool
     recordings::Vector{OERecordingMeta{T}}
