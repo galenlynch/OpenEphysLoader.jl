@@ -259,10 +259,10 @@ function OESettings(xdoc::LightXML.XMLDocument)
     settings_e = root(xdoc)
     @assert name(settings_e) == "SETTINGS" "Not a settings xml"
     info_e = required_find_element(settings_e, "INFO")
-    info = OEInfo(info_e)
+    oe_info = OEInfo(info_e)
     chain_e = required_find_element(settings_e, "SIGNALCHAIN")
     signaltree = OESignalTree(chain_e)
-    return OESettings(info, signaltree)
+    return OESettings(oe_info, signaltree)
 end
 
 """
@@ -477,12 +477,12 @@ function add_continuous_meta!(
         name == proc.channels[i].name || error("Channel names don't match!")
         filename = attribute(chan_e, "filename", required=true)
         position_attr = attribute(chan_e, "position", required=true)
-        position = parse(Int, position_attr)
+        file_position = parse(Int, position_attr)
         proc.channels[i] = OEChannel(
             proc.channels[i].name,
             proc.channels[i].number,
             proc.channels[i].bitvolts,
-            position,
+            file_position,
             filename
         )
     end
@@ -510,7 +510,7 @@ function addchild(tree::OESignalTree, id::Int, processor::OEProcessor)
     push!(tree.nodes, SignalNode(processor, id, Vector{Int}()))
     child_id = length(tree.nodes)
     push!(tree.nodes[id].children, child_id)
-    return child
+    return child_id
 end
 children(tree::Tree, id::Int) = tree.nodes[id].children
 parent(tree::Tree, id::Int) = tree.nodes[id].parent
