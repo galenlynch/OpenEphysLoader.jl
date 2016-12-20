@@ -375,7 +375,7 @@ end
 
 Top-level function to read a directory and parse the `settings.xml` and `Continuous_data.openeephys` files.
 
-returns a OEExperMeta and OESettings tuple.
+returns a OEExperMeta.
 """
 function dir_settings(dirpath::AbstractString = pwd();
                       settingsfile::AbstractString = "settings.xml",
@@ -393,7 +393,7 @@ function dir_settings(dirpath::AbstractString = pwd();
             exper_meta = OEExperMeta(settings, exper_e)
         end
     end
-    return exper_meta, settings
+    return exper_meta
 end
 
 ### Open Ephys XML parsing functions ###
