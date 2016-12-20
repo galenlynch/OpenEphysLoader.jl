@@ -14,7 +14,7 @@ Type for continuous recording channel metadata
 
 **`bitvolts`** `Float64` of volts per ADC bit
 
-**`position`** `Int` Position in drive?
+**`position`** `Int` position of data in file.
 
 **`filename`** `T<:AbstractString` name of associated `.continuous` file
 """
@@ -315,7 +315,15 @@ Construct with the [`OESettings`](@ref) from `settings.xml` and XML experiment e
 
 # Fields
 
-**`file_version`** `VersionNumber` continuous format version
+**`file_version`** `VersionNumber` continuous file format version
+
+**`experiment_number`** `Int` experiment number
+
+**`separate_files`** `Bool` `true` if files are separate
+
+**`recordings`** `Vector{OERecordingMeta{T}}` `Vector` of each [`OERecordingMeta`](@ref) within the experiment
+
+**`settings`** [`OESettings`](@ref) of the `settings.xml` file
 """
 immutable OEExperMeta{S<:AbstractString, T<:OEProcessor}
     file_version::VersionNumber
@@ -362,9 +370,16 @@ function OEExperMeta{S, T}(
 end
 
 ### Top level functions ###
+"""
+    dir_settings([dirpath::AbstractString = pwd()]; settingsfile = "settings.xml", continuousmeta="Continuous_Data.openephys")
+
+Top-level function to read a directory and parse the `settings.xml` and `Continuous_data.openeephys` files.
+
+returns a OEExperMeta and OESettings tuple.
+"""
 function dir_settings(dirpath::AbstractString = pwd();
-                      settingsfile = "settings.xml",
-                      continuousmeta = "Continuous_Data.openephys")
+                      settingsfile::AbstractString = "settings.xml",
+                      continuousmeta::AbstractString = "Continuous_Data.openephys")
     settingspath = joinpath(dirpath, settingsfile)
     isfile(settingspath) || error("$settingspath does not exist")
     continuouspath = joinpath(dirpath, continuousmeta)
@@ -382,6 +397,9 @@ function dir_settings(dirpath::AbstractString = pwd();
 end
 
 ### Open Ephys XML parsing functions ###
+"""
+Parse XML Element PROCESSOR and recover channel metadata.
+"""
 function channel_arr{T<:AbstractString}(proc_e::LightXML.XMLElement, ::Type{T} = String)
     # Assumes that channels are sorted!
     # Channels
@@ -428,6 +446,9 @@ function channel_arr{T<:AbstractString}(proc_e::LightXML.XMLElement, ::Type{T} =
     return channels
 end
 
+"""
+Add data from `Continuous_Data.openephys` to [`OESettings`](@ref) from `settings.xml`
+"""
 function add_continuous_meta!(
     settings::OESettings,
     exper_e::LightXML.XMLElement
@@ -467,6 +488,9 @@ function add_continuous_meta!(
     end
 end
 
+"""
+Find id of processor in [`OESignalTree`](@ref) that matches id of XML processor element
+"""
 function find_matching_proc(
     sig_chain::OESignalTree,
     proc_e::LightXML.XMLElement
