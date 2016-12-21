@@ -2,9 +2,9 @@
 
 *A set of tools to load data written by the [Open Ephys GUI](http://www.open-ephys.org/gui/)*
 
-| **Documentation**                                                                 | **PackageEvaluator**              | **Build Status**                                                                                  |
-| :-------------------------------------------------------------------------------: | :-------------------------------: | :-----------------------------------------------------------------------------------------------: |
-| [![][docs-stable-img]][docs-stable-url] [![][docs-latest-img]][docs-latest-url]   | [![][pkg-0.5-img]][pkg-0.5-url]   | [![][travis-img]][travis-url] [![][appveyor-img]][appveyor-url] [![][codecov-img]][codecov-url]   |
+| **Documentation**                                                                 | **PackageEvaluator**                                            | **Build Status**                                                                                  |
+| :-------------------------------------------------------------------------------: | :-------------------------------------------------------------: | :-----------------------------------------------------------------------------------------------: |
+| [![][docs-stable-img]][docs-stable-url] [![][docs-latest-img]][docs-latest-url]   | [![][pkg-0.5-img]][pkg-0.5-url] [![][pkg-0.6-img]][pkg-0.6-url] | [![][travis-img]][travis-url] [![][appveyor-img]][appveyor-url] [![][codecov-img]][codecov-url]   |
 
 ## Requirements
 Julia 0.5 or higher
@@ -17,11 +17,13 @@ julia> Pkg.add("OpenEphysLoader")
 ```
 
 ## Documentation
+For documentation on the use of `metadata`, please see the latest docs below.
+
 - [**STABLE**][docs-stable-url] &mdash; **most recently tagged version of the documentation.**
 - [**LATEST**][docs-latest-url] &mdash; *in-development version of the documentation.*
 
 ## Project Status
-This package is tested against Julia `0.5` on Linux, OS X, and Windows.
+This package is tested against Julia `0.5` and current `0.6-dev` on Linux, OS X, and Windows.
 
 This package only supports reading from continuous files at the moment, with no immediate
 plans to support spike data.
@@ -50,3 +52,6 @@ Please open an issue if you encounter any problems.
 
 [pkg-0.5-img]: http://pkg.julialang.org/badges/OpenEphysLoader_0.5.svg
 [pkg-0.5-url]: http://pkg.julialang.org/?pkg=OpenEphysLoader
+
+[pkg-0.6-img]: http://pkg.julialang.org/badges/OpenEphysLoader_0.6.svg
+[pkg-0.6-url]: http://pkg.julialang.org/?pkg=OpenEphysLoader
