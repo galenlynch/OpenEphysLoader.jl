@@ -28,12 +28,9 @@ end
 @generated function test_fields(a::Any, args...; kwargs...)
     fields = fieldnames(a)
     nfield = length(fields)
-    argcheck = :()
     testarr = Vector{Expr}(nfield)
     for (i, field) in enumerate(fields)
-        println(field)
-        check_ex = :(get(kwarg_dict, $(field), true))
-        println(dump(check_ex))
+        check_ex = :(get(kwarg_dict, $(QuoteNode(field)), true))
         fldtype = fieldtype(a, field)
         moddefined = Base.datatype_module(fldtype) == OpenEphysLoader
         if moddefined

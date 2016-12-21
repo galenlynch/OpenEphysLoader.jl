@@ -20,16 +20,16 @@ test_dir = joinpath(dirname(@__FILE__), "data")
     )
 
     rhythm_ans = (
-        100,
-        1,
-        7500,
-        false,
-        false,
-        true,
-        false,
-        true,
-        true,
-        0
+        100, # id
+        1, # lowcut
+        7500, # highcut
+        false, # adcs_on
+        false, # noiseslicer
+        true, # ttl_fastsettle
+        false, # dac_ttl
+        true, # dac_hpf
+        true, # dsp_offset
+        0 # dsp_cutoff
     )
     const BITVOLTS = 0.19499999284744263
     channel_1_ans = (
@@ -41,7 +41,7 @@ test_dir = joinpath(dirname(@__FILE__), "data")
     )
     channel_2_ans = (
         "CH2",
-        0,
+        1,
         BITVOLTS,
         1024,
         "100_CH2.continuous"
@@ -58,18 +58,22 @@ test_dir = joinpath(dirname(@__FILE__), "data")
         30000
     )
 
+    # pre plugin settings
     expermeta = dir_settings(test_dir)
     settings = expermeta.settings
     test_fields(settings, (info_ans), recording_chain = false)
     @test ! isempty(settings.recording_chain.nodes)
     rhythmnode = settings.recording_chain.nodes[1].content
-    test_fields(rhythmnode, rhythm_ans, channels = false)
-    test_fields(rhythmnode.channels[1], channel_1_ans)
-    test_fields(rhythmnode.channels[2], channel_2_ans)
+    test_fields(rhythmnode, rhythm_ans..., channels = false)
+    test_fields(rhythmnode.channels[1], channel_1_ans...)
+    test_fields(rhythmnode.channels[2], channel_2_ans...)
     @test expermeta.recordings[1].recording_processors[1] == rhythmnode
-    test_fields(expermeta, expermeta_ans, recordings = false, settings = false)
+    test_fields(expermeta, expermeta_ans..., recordings = false, settings = false)
     @test ! isempty(expermeta.recordings)
-    test_fields(expermeta.recordings[1], recording_ans, recording_processors = false)
+    test_fields(expermeta.recordings[1], recording_ans..., recording_processors = false)
+
+    #plug in settings
+    plugexpermeta = dir_settings(test_dir, settingsfile = "plugin_settings.xml")
 end
 
 end # module TestMetaData

@@ -505,15 +505,7 @@ end
 
 ### Tree functions ###
 # Taken from Scott Jones' StackOverflow answer on 4/13/2016
-function addchild(tree::OESignalTree, id::Int, processor::OEProcessor)
-    1 <= id <= length(tree.nodes) || throw(BoundsError(tree, id))
-    push!(tree.nodes, SignalNode(processor, id, Vector{Int}()))
-    child_id = length(tree.nodes)
-    push!(tree.nodes[id].children, child_id)
-    return child_id
-end
 children(tree::Tree, id::Int) = tree.nodes[id].children
-parent(tree::Tree, id::Int) = tree.nodes[id].parent
 function find_by(pred::Function, tree::Tree)
     return find_by(pred, tree, 1)
 end
