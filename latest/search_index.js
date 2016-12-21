@@ -117,7 +117,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Public",
     "title": "Array types",
     "category": "section",
-    "text": "All array types are subtypes of the abstract type OEArray, and data from continuous files are subtypes of the abstract type OEContArray.OEArray\nOEContArrayThe following array types can be used to access different aspects of the data:SampleArray\nTimeArray\nRecNoArrayAlternatively, all three aspects can be accessed simultaneously:JointArray"
+    "text": "All array types are subtypes of the abstract type OEArray, and data from continuous files are subtypes of the abstract type  OEContArray.OEArray\nOEContArrayThe following array types can be used to access different aspects of the data:SampleArray\nTimeArray\nRecNoArrayAlternatively, all three aspects can be accessed simultaneously:JointArray"
 },
 
 {
@@ -142,6 +142,78 @@ var documenterSearchIndex = {"docs": [
     "title": "Information types",
     "category": "section",
     "text": "The following types provide information about OpenEphys filesOriginalHeader\nContinuousFile"
+},
+
+{
+    "location": "lib/public.html#OpenEphysLoader.metadata",
+    "page": "Public",
+    "title": "OpenEphysLoader.metadata",
+    "category": "Function",
+    "text": "metadata([dirpath::AbstractString = pwd()]; settingsfile = \"settings.xml\", continuousmeta=\"Continuous_Data.openephys\")\n\nTop-level function to read a directory and parse the settings.xml and Continuous_data.openeephys files.\n\nreturns a OEExperMeta.\n\n\n\n"
+},
+
+{
+    "location": "lib/public.html#OpenEphysLoader.OEExperMeta",
+    "page": "Public",
+    "title": "OpenEphysLoader.OEExperMeta",
+    "category": "Type",
+    "text": "OEExperMeta{S<:AbstractString, T<:OEProcessor}(s::OESettings, exper::LightXML.XMLElement)\n\nType to represent the Experiment metadata in Continuous_Data.openephys.\n\nConstruct with the OESettings from settings.xml and XML experiment element.\n\nFields\n\nfile_version VersionNumber continuous file format version\n\nexperiment_number Int experiment number\n\nseparate_files Bool true if files are separate\n\nrecordings Vector{OERecordingMeta{T}} Vector of each OERecordingMeta within the experiment\n\nsettings OESettings of the settings.xml file\n\n\n\n"
+},
+
+{
+    "location": "lib/public.html#OpenEphysLoader.OESettings",
+    "page": "Public",
+    "title": "OpenEphysLoader.OESettings",
+    "category": "Type",
+    "text": "OESettings{S<:AbstractString, T<:OEProcessor}(xdoc::LightXML.XMLDocument)\n\nType to represent information in the settings.xml file made by the Open Ephys GUI.\n\nConstruct with the XML document for settings.xml\n\nFields\n\ninfo OEInfo GUI info.\n\nrecording_chain OESignalTree Signal tree that leads to recording processors.\n\n\n\n"
+},
+
+{
+    "location": "lib/public.html#OpenEphysLoader.OEInfo",
+    "page": "Public",
+    "title": "OpenEphysLoader.OEInfo",
+    "category": "Type",
+    "text": "OEInfo{T<:AbstractString}(info_e::LigthXML.XMLElement)\n\nType to represent the info element in settings.xml made by Open Ephys.\n\nConstruct with the XML info element.\n\nFields\n\ngui_version VersionNumber GUI version\n\nplugin_api_version VersionNumber plugin API version. If gui_version is less than 0.4.0 then this will be 0\n\ndatetime DateTime date and time that settings.xml was made\n\nos T Operating system of computer running GUI\n\nmachine T hostname of computer running GUI\n\n\n\n"
+},
+
+{
+    "location": "lib/public.html#OpenEphysLoader.OERecordingMeta",
+    "page": "Public",
+    "title": "OpenEphysLoader.OERecordingMeta",
+    "category": "Type",
+    "text": "OERecordingMeta{T<:OEProcessor}(settings::OESettings, rec_e::LightXML.XMLElement)\n\nType that represents recording metadata in Continuous_Data.openephys file made by the Open Ephys GUI.\n\nConstruct with a OESettings from the settings.xml file, and the XML recording element of the Continuous_Data.openephys file.\n\nFields\n\nnumber Int Recording number\n\nsamplerate Float64 Sampling rate\n\nrecording_processors Vector{T} list of recording processors\n\n\n\n"
+},
+
+{
+    "location": "lib/public.html#OpenEphysLoader.OEProcessor",
+    "page": "Public",
+    "title": "OpenEphysLoader.OEProcessor",
+    "category": "Type",
+    "text": "OEProcessor{T<:AbstractString}\n\nAbstract type for recording Open Ephys processors.\n\n\n\n"
+},
+
+{
+    "location": "lib/public.html#OpenEphysLoader.OERhythmProcessor",
+    "page": "Public",
+    "title": "OpenEphysLoader.OERhythmProcessor",
+    "category": "Type",
+    "text": "OERhythmProcessor{T<:AbstractString}(proc_e::LightXML.XMLElement)\n\nType for Rhythm processor metadata, subtype of OEProcessor.\n\nConstruct with XML element for processor.\n\nFields\n\nid Int of processor ID in GUI\n\nlowcut Float64 of low pass filter cutoff on headstages\n\nhighcut Float64 of high pass filter cutoff on headstages\n\nadcs_on Bool true if ADCs on\n\nnoiseslicer Bool true if noiseslicer used for ADC\n\nttl_fastsettle Bool true if TTL fast settle used\n\ndac_ttl Bool true if dac ttl is on\n\ndac_hpf Bool true if dac hpf is on\n\ndsp_offset Bool true if headstage DSP offset removal is used\n\ndsp_cutoff Float64 of DSP high pass filter cutoff\n\nchannels Vector{OEChannel{T}} list of OEChannel in Rhythm processor\n\n\n\n"
+},
+
+{
+    "location": "lib/public.html#OpenEphysLoader.OEChannel",
+    "page": "Public",
+    "title": "OpenEphysLoader.OEChannel",
+    "category": "Type",
+    "text": "OEChannel{T<:AbstractString}\n\nType for continuous recording channel metadata\n\nFields\n\nname T of channel name\n\nnumber Int of channel number in GUI\n\nbitvolts Float64 of volts per ADC bit\n\nposition Int position of data in file.\n\nfilename T name of associated .continuous file\n\n\n\n"
+},
+
+{
+    "location": "lib/public.html#Recording-metadata-1",
+    "page": "Public",
+    "title": "Recording metadata",
+    "category": "section",
+    "text": "Information about the recording session can be gathered from the  settings.xml and Continuous_Data.openephys files by using the  metadata function. The contents of the metadata files are  contained in the OEExperMeta datatype.metadata\nOEExperMeta\nOESettings\nOEInfo\nOERecordingMeta\nOEProcessor\nOERhythmProcessor\nOEChannel"
 },
 
 {
@@ -225,6 +297,54 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
+    "location": "lib/internals.html#OpenEphysLoader.OESignalTree",
+    "page": "Internals",
+    "title": "OpenEphysLoader.OESignalTree",
+    "category": "Type",
+    "text": "OESignalTree{T<:OEProcessor}(chain_e::LightXML.XMLElement, [recording_anmes::Set])\n\nSignal tree for recording processors. Since OpenEphysLoader currently on works on .continuous file types, this will search for the first OERhythmProcessor and make a signal tree up to that point.\n\nConstruct with a XML signalchain element, and a set of processor names that are valid recording nodes.\n\nSee Tree for field information.\n\n\n\n"
+},
+
+{
+    "location": "lib/internals.html#OpenEphysLoader.SignalNode",
+    "page": "Internals",
+    "title": "OpenEphysLoader.SignalNode",
+    "category": "Type",
+    "text": "SignalNode{T<:OEProcessor}\n\nNode type for OEProcessor signal chain, subtype of TreeNode.\n\nSee TreeNode for information on fields.\n\n\n\n"
+},
+
+{
+    "location": "lib/internals.html#OpenEphysLoader.Tree",
+    "page": "Internals",
+    "title": "OpenEphysLoader.Tree",
+    "category": "Type",
+    "text": "Tree{T}\n\nAbstract type for tree structure, with type T content.\n\nContains a group of TreeNode in the single required field:\n\nRequired Fields\n\nnodes Indexable list of TreeNode elements.\n\n\n\n"
+},
+
+{
+    "location": "lib/internals.html#OpenEphysLoader.TreeNode",
+    "page": "Internals",
+    "title": "OpenEphysLoader.TreeNode",
+    "category": "Type",
+    "text": "TreeNode{T}\n\nAbstract node type for tree structure, with type T content.\n\nSubtypes must have the following fields:\n\nRequired Fields\n\ncontent T content of node.\n\nparent Int ID of parent node\n\nchildren Vector{Int} IDs of children node\n\n\n\n"
+},
+
+{
+    "location": "lib/internals.html#OpenEphysLoader.add_continuous_meta!-Tuple{OpenEphysLoader.OESettings,LightXML.XMLElement}",
+    "page": "Internals",
+    "title": "OpenEphysLoader.add_continuous_meta!",
+    "category": "Method",
+    "text": "Add data from Continuous_Data.openephys to OESettings from settings.xml\n\n\n\n"
+},
+
+{
+    "location": "lib/internals.html#OpenEphysLoader.channel_arr",
+    "page": "Internals",
+    "title": "OpenEphysLoader.channel_arr",
+    "category": "Function",
+    "text": "Parse XML Element PROCESSOR and recover channel metadata.\n\n\n\n"
+},
+
+{
     "location": "lib/internals.html#OpenEphysLoader.check_filesize-Tuple{IOStream}",
     "page": "Internals",
     "title": "OpenEphysLoader.check_filesize",
@@ -238,6 +358,14 @@ var documenterSearchIndex = {"docs": [
     "title": "OpenEphysLoader.convert_block!",
     "category": "Method",
     "text": "Convert the wacky data format in OpenEphys continuous files\n\n\n\n"
+},
+
+{
+    "location": "lib/internals.html#OpenEphysLoader.find_matching_proc-Tuple{OpenEphysLoader.OESignalTree,LightXML.XMLElement}",
+    "page": "Internals",
+    "title": "OpenEphysLoader.find_matching_proc",
+    "category": "Method",
+    "text": "Find id of processor in OESignalTree that matches id of XML processor element\n\n\n\n"
 },
 
 {
