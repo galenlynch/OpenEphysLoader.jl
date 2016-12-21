@@ -21,7 +21,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Home",
     "title": "Package Features",
     "category": "section",
-    "text": "Read contents of continuous data files without loading the entire file into memory\nArray interface to sample values, time stamps, and recording numbers\nFlexibly typed output provides access to raw sample values or converted voltage values"
+    "text": "Read contents of continuous data files without loading the entire file into memory\nArray interface to sample values, time stamps, and recording numbers\nFlexibly typed output provides access to raw sample values or converted voltage values\nAccess metadata about Open Ephys recordings"
 },
 
 {
@@ -29,7 +29,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Home",
     "title": "Example Usage",
     "category": "section",
-    "text": "OpenEphysLoader.jl provides array types to access file contents. Values accessed through these subtypes of OEArray have an array interface backed by file contents, instead of memory.docpath = @__FILE__()\ndocdir = dirname(docpath)\nrelloadpath = joinpath(docdir, \"../test/data\")\nabsloadpath = realpath(relloadpath)\nabsloadfile = joinpath(absloadpath, \"100_AUX1.continuous\")\nopen(absloadfile, \"r\") do dataio\n    global databytes = read(dataio, 3094)\nend\npath, tmpio = mktemp()\ntry\n    write(tmpio, databytes)\nfinally\n    close(tmpio)\nendusing OpenEphysLoader\nopen(path, \"r\") do io\n    A = SampleArray(io)\n    A[1:3]\nendrm(path)To pull the entire file contents into memory, use copy(OEArray)."
+    "text": "OpenEphysLoader.jl provides array types to access file contents. Values accessed through these subtypes of OEArray have an array interface backed by file contents, instead of memory.docpath = @__FILE__()\ndocdir = dirname(docpath)\nrelloadpath = joinpath(docdir, \"../test/data\")\ndatadir = realpath(relloadpath)\nabsloadfile = joinpath(datadir, \"100_AUX1.continuous\")\nopen(absloadfile, \"r\") do dataio\n    global databytes = read(dataio, 3094)\nend\npath, tmpio = mktemp()\ntry\n    write(tmpio, databytes)\nfinally\n    close(tmpio)\nendusing OpenEphysLoader\nopen(path, \"r\") do io\n    A = SampleArray(io)\n    A[1:3]\nendTo pull the entire file contents into memory, use Array(OEArray).The metadata of recordings can be accessed using the metadata function:using OpenEphysLoader\nmeta = metadata(datadir)rm(path)"
 },
 
 {
