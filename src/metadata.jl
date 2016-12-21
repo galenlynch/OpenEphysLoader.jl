@@ -8,7 +8,7 @@ Type for continuous recording channel metadata
 
 # Fields
 
-**`name`** `T<:AbstractString` of channel name
+**`name`** `T` of channel name
 
 **`number`** `Int` of channel number in GUI
 
@@ -16,7 +16,7 @@ Type for continuous recording channel metadata
 
 **`position`** `Int` position of data in file.
 
-**`filename`** `T<:AbstractString` name of associated `.continuous` file
+**`filename`** `T` name of associated `.continuous` file
 """
 immutable OEChannel{T<:AbstractString}
     name::T
@@ -60,7 +60,8 @@ Construct with XML element for processor.
 
 **`dsp_cutoff`** `Float64` of DSP high pass filter cutoff
 
-**`channels`** `Vector{OEChannel{T}}` list of [`OEChannel`](@ref) in Rhythm processor
+**`channels`** `Vector{OEChannel{T}}` list of [`OEChannel`](@ref) in
+Rhythm processor
 """
 immutable OERhythmProcessor{T<:AbstractString} <: OEProcessor{T}
     id::Int
@@ -162,9 +163,12 @@ abstract Tree{T}
 """
     OESignalTree{T<:OEProcessor}(chain_e::LightXML.XMLElement, [recording_anmes::Set])
 
-Signal tree for recording processors. Since [`OpenEphysLoader`](@ref) currently on works on `.continuous` file types, this will search for the first [`OERhythmProcessor`](@src) and make a signal tree up to that point.
+Signal tree for recording processors. Since [`OpenEphysLoader`](@ref)
+currently on works on `.continuous` file types, this will search for the
+first [`OERhythmProcessor`](@src) and make a signal tree up to that point.
 
-Construct with a XML signalchain element, and a set of processor names that are valid recording nodes.
+Construct with a XML signalchain element, and a set of processor names that
+are valid recording nodes.
 
 See [`Tree`](@ref) for field information.
 """
@@ -201,7 +205,8 @@ Construct with the XML info element.
 
 **`gui_version`** `VersionNumber` GUI version
 
-**`plugin_api_version`** `VersionNumber` plugin API version. If `gui_version` is less than `0.4.0` then this will be `0`
+**`plugin_api_version`** `VersionNumber` plugin API version. If `gui_version`
+is less than `0.4.0` then this will be `0`
 
 **`datetime`** `DateTime` date and time that `settings.xml` was made
 
@@ -248,7 +253,8 @@ Construct with the XML document for `settings.xml`
 
 **`info`** [`OEInfo`](@ref) GUI info.
 
-**`recording_chain`** [`OESignalTree`](@ref) Signal tree that leads to recording processors.
+**`recording_chain`** [`OESignalTree`](@ref) Signal tree that leads to recording
+processors.
 """
 immutable OESettings{S<:AbstractString, T<:OEProcessor}
     info::OEInfo{S}
@@ -267,9 +273,11 @@ end
 
 """
     OERecordingMeta{T<:OEProcessor}(settings::OESettings, rec_e::LightXML.XMLElement)
-Type that represents recording metadata in `Continuous_Data.openephys` file made by the Open Ephys GUI.
+Type that represents recording metadata in `Continuous_Data.openephys` file
+made by the Open Ephys GUI.
 
-Construct with a [`OESettings`](@ref) from the `settings.xml` file, and the XML recording element of the `Continuous_Data.openephys` file.
+Construct with a [`OESettings`](@ref) from the `settings.xml` file, and the XML
+recording element of the `Continuous_Data.openephys` file.
 
 # Fields
 
@@ -294,13 +302,17 @@ function OERecordingMeta{S, T}(
     samplerate = parse(Float64, samprate_attr)
 
     proc_es = get_elements_by_tagname(rec_e, "PROCESSOR")
-    isempty(proc_es) && error("Could not find PROCESSOR elements")
+    if isempty(proc_es)
+        throw(CorruptedException("Could not find PROCESSOR elements"))
+    end
     nproc = length(proc_es)
     rec_procs = Vector{T}(nproc)
 
     for (i, proc_e) in enumerate(proc_es)
         maybe_id = find_matching_proc(settings.recording_chain, proc_e)
-        isempty(maybe_id) && error("Could not find matching processor")
+        if isempty(maybe_id)
+            throw(CorruptedException("Could not find matching processor"))
+        end
         id = maybe_id[1]
         rec_procs[i] = settings.recording_chain.nodes[id].content
     end
@@ -355,7 +367,9 @@ function OEExperMeta{S, T}(
 
     # get recordings
     rec_es = get_elements_by_tagname(exper_e, "RECORDING")
-    isempty(rec_es) && error("Could not find RECORDING elements")
+    if isempty(rec_es)
+        throw(CorruptedException("Could not find RECORDING elements"))
+    end
     nrec = length(rec_es)
     recordings = Vector{OERecordingMeta{T}}(nrec)
     for (i, rec_e) in enumerate(rec_es)
@@ -371,18 +385,23 @@ end
 
 ### Top level functions ###
 """
-    dir_settings([dirpath::AbstractString = pwd()]; settingsfile = "settings.xml", continuousmeta="Continuous_Data.openephys")
+    metadata([dirpath::AbstractString = pwd()]; settingsfile = "settings.xml", continuousmeta="Continuous_Data.openephys")
 
 Top-level function to read a directory and parse the `settings.xml` and `Continuous_data.openeephys` files.
 
-returns a OEExperMeta.
+returns a [`OEExperMeta`](@ref).
 """
-function dir_settings(dirpath::AbstractString = pwd();
-                      settingsfile::AbstractString = "settings.xml",
-                      continuousmeta::AbstractString = "Continuous_Data.openephys")
+function metadata(
+    dirpath::AbstractString = pwd();
+    settingsfile::AbstractString = "settings.xml",
+    continuousmeta::AbstractString = "Continuous_Data.openephys"
+)
     settingspath = joinpath(dirpath, settingsfile)
-    isfile(settingspath) || error("$settingspath does not exist")
     continuouspath = joinpath(dirpath, continuousmeta)
+    return metadata(settingspath, continuouspath)
+end
+function metadata(settingspath::AbstractString, continuouspath::AbstractString)
+    isfile(settingspath) || error("$settingspath does not exist")
     isfile(continuouspath) || error("$continuouspath does not exist")
     local exper_meta, settings
     parse_file(settingspath) do settingsdoc
@@ -404,7 +423,9 @@ function channel_arr{T<:AbstractString}(proc_e::LightXML.XMLElement, ::Type{T} =
     # Assumes that channels are sorted!
     # Channels
     channel_vec = get_elements_by_tagname(proc_e, "CHANNEL")
-    isempty(channel_vec) && error("Could not find CHANNEL elements")
+    if isempty(channel_vec)
+        throw(CorruptedException("Could not find CHANNEL elements"))
+    end
     nchan = length(channel_vec)
     chan_rec = fill(false, nchan)
     chnos = Array{Int}(nchan)
@@ -457,10 +478,14 @@ function add_continuous_meta!(
     length(rec_es) != 1 && error("Need to change this logic...")
     rec_e = rec_es[1]
     proc_es = get_elements_by_tagname(rec_e, "PROCESSOR")
-    isempty(proc_es) && error("Could not find PROCESSOR elements")
+    if isempty(proc_es)
+        throw(CorruptedException("Could not find PROCESSOR elements"))
+    end
     for (i, proc_e) in enumerate(proc_es)
         maybe_id = find_matching_proc(settings.recording_chain, proc_e)
-        isempty(maybe_id) && error("Could not find matching processor")
+        if isempty(maybe_id)
+            throw(CorruptedException("Could not find matching processor"))
+        end
         id = maybe_id[1]
         add_continuous_meta!(settings.recording_chain.nodes[id].content,
                              proc_e)
@@ -471,10 +496,12 @@ function add_continuous_meta!(
     proc_e::LightXML.XMLElement
 )
     chan_es = get_elements_by_tagname(proc_e, "CHANNEL")
-    isempty(chan_es) && error("Could not find CHANNEL elements")
+    isempty(chan_es) && throw(CorruptedException("Could not find CHANNEL elements"))
     for (i, chan_e) in enumerate(chan_es)
         name = attribute(chan_e, "name", required=true)
-        name == proc.channels[i].name || error("Channel names don't match!")
+        if name != proc.channels[i].name
+            throw(CorruptedException("Channel names don't match!"))
+        end
         filename = attribute(chan_e, "filename", required=true)
         position_attr = attribute(chan_e, "position", required=true)
         file_position = parse(Int, position_attr)
@@ -499,7 +526,9 @@ function find_matching_proc(
     proc_id = parse(Int, proc_id_attr)
     pred = x::OERhythmProcessor -> x.id == proc_id
     maybe_match = find_by(pred, sig_chain)
-    isempty(maybe_match) && error("Could not find matching processor")
+    if isempty(maybe_match)
+        throw(CorruptedException("Could not find matching processor"))
+    end
     return maybe_match[1]
 end
 
@@ -520,13 +549,13 @@ function find_by(pred::Function, tree::Tree, id::Int)
             end
         end
     end
-    return Array{Int}() # Didn't find a match
+    return Int[] # Didn't find a match
 end
 
 ### Helper Functions ###
 function required_find_element(e::LightXML.XMLElement, name::AbstractString)
     maybe_e = find_element(e, name)
-    isa(maybe_e, Void) && error("Could not find $name element")
+    isa(maybe_e, Void) && throw(CorruptedException("Could not find $name element"))
     return maybe_e
 end
 

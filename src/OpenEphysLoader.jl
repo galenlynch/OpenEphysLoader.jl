@@ -9,6 +9,7 @@ module OpenEphysLoader
 using LightXML
 import Base: show,
     showcompact,
+    showerror,
     size,
     linearindexing,
     getindex,
@@ -39,8 +40,14 @@ export
     ## Types
     OEExperMeta,
     OESettings,
+    OEInfo,
+    OERecordingMeta,
+    OEProcessor,
+    OERhythmProcessor,
+    OEChannel,
+
     ## Functions
-    dir_settings
+    metadata
 
 ## source files
 include("metadata.jl")

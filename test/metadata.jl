@@ -59,7 +59,7 @@ test_dir = joinpath(dirname(@__FILE__), "data")
     )
 
     # pre plugin settings
-    expermeta = dir_settings(test_dir)
+    expermeta = metadata(test_dir)
     settings = expermeta.settings
     test_fields(settings, (info_ans), recording_chain = false)
     @test ! isempty(settings.recording_chain.nodes)
@@ -73,7 +73,25 @@ test_dir = joinpath(dirname(@__FILE__), "data")
     test_fields(expermeta.recordings[1], recording_ans..., recording_processors = false)
 
     #plug in settings
-    plugexpermeta = dir_settings(test_dir, settingsfile = "plugin_settings.xml")
+    @test_throws CorruptedException metadata(
+        test_dir,
+        settingsfile = "plugin_settings.xml",
+    )
+    @test_throws ErrorException metadata(
+        test_dir,
+        settingsfile = randstring()
+    )
+    @test_throws ErrorException metadata(
+        test_dir,
+        continuousmeta = randstring()
+    )
+
+    plugexpermeta = metadata(
+        test_dir,
+        settingsfile = "plugin_settings.xml",
+        continuousmeta = "plugin_Continuous_Data.openephys"
+    )
+    @test plugexpermeta.settings.info.plugin_api_version == v"3"
 end
 
 end # module TestMetaData

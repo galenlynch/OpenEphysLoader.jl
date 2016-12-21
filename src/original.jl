@@ -17,7 +17,11 @@ type MATint <: MATLABdata end
 type MATfloat <: MATLABdata end
 
 "Exception type to indicate a malformed data file"
-type CorruptedException <: Exception end
+type CorruptedException <: Exception
+    message::String
+end
+CorruptedException() = CorruptedException("")
+Base.showerror(io::IO, e::CorruptedException) = print(io, "Corrupted Exception: ", e.message)
 
 ### Constants for parsing header ###
 const HEADER_N_BYTES = 1024
