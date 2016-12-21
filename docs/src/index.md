@@ -14,6 +14,7 @@ the [OpenEphys GUI](http://www.open-ephys.org/gui/)
 - Read contents of continuous data files without loading the entire file into memory
 - Array interface to sample values, time stamps, and recording numbers
 - Flexibly typed output provides access to raw sample values or converted voltage values
+- Access metadata about Open Ephys recordings
 
 ## Example Usage
 OpenEphysLoader.jl provides array types to access file contents. Values accessed
@@ -24,8 +25,8 @@ file contents, instead of memory.
 docpath = @__FILE__()
 docdir = dirname(docpath)
 relloadpath = joinpath(docdir, "../test/data")
-absloadpath = realpath(relloadpath)
-absloadfile = joinpath(absloadpath, "100_AUX1.continuous")
+datadir = realpath(relloadpath)
+absloadfile = joinpath(datadir, "100_AUX1.continuous")
 open(absloadfile, "r") do dataio
     global databytes = read(dataio, 3094)
 end
@@ -45,12 +46,18 @@ open(path, "r") do io
 end
 ```
 
+To pull the entire file contents into memory, use `Array(OEArray)`.
+
+The metadata of recordings can be accessed using the [`metadata`](@ref) function:
+
+```@example loader
+using OpenEphysLoader
+meta = metadata(datadir)
+```
+
 ```@setup loader
 rm(path)
 ```
-
-To pull the entire file contents into memory, use `copy(OEArray)`.
-
 
 ## Library Outline
 
