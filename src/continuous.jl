@@ -121,7 +121,7 @@ for (typename, typeparam, buffertype, defaulttype) = arraytypes
             return $(typename){T, C}(contfile, block, 0, check)
         end
         function $(typename){T}(::Type{T}, io::IOStream, check::Bool = true)
-            return $(typename)(T, ContinuousFile(io))
+            return $(typename)(T, ContinuousFile(io), check)
         end
         function $(typename)(io::IOStream, check::Bool=true)
             return $(typename)($(defaulttype), io, check)
