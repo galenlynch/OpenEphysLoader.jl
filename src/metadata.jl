@@ -494,6 +494,39 @@ function add_continuous_meta!(proc::OERhythmProcessor, proc_e::LightXML.XMLEleme
     end
 end
 
+function compare_recording_channels(recs_es::Vector{LightXML.XMLElement})
+    chan_xml = XmlNode("CHANNEL", XmlNode[], ["name", "filename", "position"])
+    proc_xml = XmlNode("PROCESSOR", chan_xml, ["id"])
+    # find recursive attributes for each recording element, and then compare the sets
+end
+
+type XmlNode
+    node_tag::String
+    daughter_el::Vector{XmlNode}
+    attr::Vector{String}
+end
+
+function recurse_xml_attr(e::LightXML.XMLElement, node_tree::XmlNode)
+    outs = Vector{String}()
+    recurse_xml_attr!(e, node_tree, outs, "")
+    return outs
+end
+
+function recurse_xml_attr!(e::LightXML.XMLElement, node_tree::XmlNode, outs::Vector{String}, prepend::String)
+    target_es = get_elements_by_tagname(e, node_tree.node_tag)
+    for target_e in target_es
+        node_attrs = map(x -> attribute(target_e, x, required=true), node_tree.attr)
+        curr_path = string(prepend, join(node_attrs, "/"), "/")
+        if isempty(node_tree.daughter_el)
+            push!(outs, curr_path)
+        else
+            for daughter in node_tree.daughter_el
+                recurse_xml_attr!(target_e, daughter, outs, curr_path)
+            end
+        end
+    end
+end
+
 """
 Find id of processor in [`OESignalTree`](@ref) that matches id of XML processor element
 """
