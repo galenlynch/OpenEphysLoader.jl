@@ -292,10 +292,7 @@ immutable OERecordingMeta{T<:OEProcessor}
     samplerate::Float64
     recording_processors::Vector{T}
 end
-function OERecordingMeta{S, T}(
-    settings::OESettings{S, T},
-    rec_e::LightXML.XMLElement
-)
+function OERecordingMeta{S, T}(settings::OESettings{S, T}, rec_e::LightXML.XMLElement)
     no_attr = attribute(rec_e, "number", required=true)
     number = parse(Int, no_attr)
     samprate_attr = attribute(rec_e, "samplerate", required=true)
@@ -309,11 +306,7 @@ function OERecordingMeta{S, T}(
     rec_procs = Vector{T}(nproc)
 
     for (i, proc_e) in enumerate(proc_es)
-        maybe_id = find_matching_proc(settings.recording_chain, proc_e)
-        if isempty(maybe_id)
-            throw(CorruptedException("Could not find matching processor"))
-        end
-        id = maybe_id[1]
+        id = find_matching_proc(settings.recording_chain, proc_e)
         rec_procs[i] = settings.recording_chain.nodes[id].content
     end
     return OERecordingMeta(number, samplerate, rec_procs)
@@ -344,10 +337,7 @@ immutable OEExperMeta{S<:AbstractString, T<:OEProcessor}
     recordings::Vector{OERecordingMeta{T}}
     settings::OESettings{S, T}
 end
-function OEExperMeta{S, T}(
-    settings::OESettings{S, T},
-    exper_e::LightXML.XMLElement
-)
+function OEExperMeta{S, T}(settings::OESettings{S, T}, exper_e::LightXML.XMLElement)
     # Get version
     ver_attr = attribute(exper_e, "version", required=true)
     ## Version numbers in OE files are floats, often see 0.400000000000002
@@ -470,10 +460,7 @@ end
 """
 Add data from `Continuous_Data.openephys` to [`OESettings`](@ref) from `settings.xml`
 """
-function add_continuous_meta!(
-    settings::OESettings,
-    exper_e::LightXML.XMLElement
-)
+function add_continuous_meta!(settings::OESettings, exper_e::LightXML.XMLElement)
     rec_es = get_elements_by_tagname(exper_e, "RECORDING")
     length(rec_es) != 1 && error("Need to change this logic...")
     rec_e = rec_es[1]
@@ -482,19 +469,11 @@ function add_continuous_meta!(
         throw(CorruptedException("Could not find PROCESSOR elements"))
     end
     for (i, proc_e) in enumerate(proc_es)
-        maybe_id = find_matching_proc(settings.recording_chain, proc_e)
-        if isempty(maybe_id)
-            throw(CorruptedException("Could not find matching processor"))
-        end
-        id = maybe_id[1]
-        add_continuous_meta!(settings.recording_chain.nodes[id].content,
-                             proc_e)
+        id = find_matching_proc(settings.recording_chain, proc_e)
+        add_continuous_meta!(settings.recording_chain.nodes[id].content, proc_e)
     end
 end
-function add_continuous_meta!(
-    proc::OERhythmProcessor,
-    proc_e::LightXML.XMLElement
-)
+function add_continuous_meta!(proc::OERhythmProcessor, proc_e::LightXML.XMLElement)
     chan_es = get_elements_by_tagname(proc_e, "CHANNEL")
     isempty(chan_es) && throw(CorruptedException("Could not find CHANNEL elements"))
     for (i, chan_e) in enumerate(chan_es)
@@ -526,10 +505,10 @@ function find_matching_proc(
     proc_id = parse(Int, proc_id_attr)
     pred = x::OERhythmProcessor -> x.id == proc_id
     maybe_match = find_by(pred, sig_chain)
-    if isempty(maybe_match)
+    if maybe_match < 0
         throw(CorruptedException("Could not find matching processor"))
     end
-    return maybe_match[1]
+    return maybe_match
 end
 
 ### Tree functions ###
@@ -544,12 +523,12 @@ function find_by(pred::Function, tree::Tree, id::Int)
     else
         for child in children(tree, id)
             maybe_match = find_by(pred, tree, child)
-            if ! isempty(maybe_match)
+            if maybe_match > 0
                 return maybe_match
             end
         end
     end
-    return Int[] # Didn't find a match
+    return -1 # Didn't find a match
 end
 
 ### Helper Functions ###
