@@ -45,6 +45,7 @@ export
     OEProcessor,
     OERhythmProcessor,
     OEChannel,
+    XmlNode,
 
     ## Functions
     metadata

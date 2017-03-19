@@ -36,14 +36,14 @@ test_dir = joinpath(dirname(@__FILE__), "data")
         "CH1",
         0,
         BITVOLTS,
-        1024,
+        [1024],
         "100_CH1.continuous"
     )
     channel_2_ans = (
         "CH2",
         1,
         BITVOLTS,
-        1024,
+        [1024],
         "100_CH2.continuous"
     )
 

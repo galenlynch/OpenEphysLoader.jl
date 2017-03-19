@@ -14,7 +14,7 @@ Type for continuous recording channel metadata
 
 **`bitvolts`** `Float64` of volts per ADC bit
 
-**`position`** `Int` position of data in file.
+**`position`** `Vector{Int}` vector of start position in the file for each recording's data.
 
 **`filename`** `T` name of associated `.continuous` file
 """
@@ -22,7 +22,7 @@ immutable OEChannel{T<:AbstractString}
     name::T
     number::Int
     bitvolts::Float64
-    position::Int
+    position::Vector{Int}
     filename::T
 end
 
@@ -448,7 +448,7 @@ function channel_arr{T<:AbstractString}(proc_e::LightXML.XMLElement, ::Type{T} =
             channels[recno] = OEChannel{String}(chname,
                                                 info_chno,
                                                 bitvolts,
-                                                0,
+                                                Vector{Int}(),
                                                 "")
             recno += 1
         end
@@ -462,15 +462,18 @@ Add data from `Continuous_Data.openephys` to [`OESettings`](@ref) from `settings
 """
 function add_continuous_meta!(settings::OESettings, exper_e::LightXML.XMLElement)
     rec_es = get_elements_by_tagname(exper_e, "RECORDING")
-    length(rec_es) != 1 && error("Need to change this logic...")
-    rec_e = rec_es[1]
-    proc_es = get_elements_by_tagname(rec_e, "PROCESSOR")
-    if isempty(proc_es)
-        throw(CorruptedException("Could not find PROCESSOR elements"))
+    if ! recordings_are_consistent(rec_es)
+        throw(CorruptedException("Channel information not consistent across recordings"))
     end
-    for (i, proc_e) in enumerate(proc_es)
-        id = find_matching_proc(settings.recording_chain, proc_e)
-        add_continuous_meta!(settings.recording_chain.nodes[id].content, proc_e)
+    for rec_e in rec_es
+        proc_es = get_elements_by_tagname(rec_e, "PROCESSOR")
+        if isempty(proc_es)
+            throw(CorruptedException("Could not find PROCESSOR elements"))
+        end
+        for proc_e in proc_es
+            id = find_matching_proc(settings.recording_chain, proc_e)
+            add_continuous_meta!(settings.recording_chain.nodes[id].content, proc_e)
+        end
     end
 end
 function add_continuous_meta!(proc::OERhythmProcessor, proc_e::LightXML.XMLElement)
@@ -484,26 +487,35 @@ function add_continuous_meta!(proc::OERhythmProcessor, proc_e::LightXML.XMLEleme
         filename = attribute(chan_e, "filename", required=true)
         position_attr = attribute(chan_e, "position", required=true)
         file_position = parse(Int, position_attr)
-        proc.channels[i] = OEChannel(
-            proc.channels[i].name,
-            proc.channels[i].number,
-            proc.channels[i].bitvolts,
-            file_position,
-            filename
-        )
+        if isempty(proc.channels[i].filename)
+            proc.channels[i] = OEChannel(
+                proc.channels[i].name,
+                proc.channels[i].number,
+                proc.channels[i].bitvolts,
+                [file_position],
+                filename
+            )
+        else
+            push!(proc.channels[i].position, file_position)
+        end
     end
-end
-
-function compare_recording_channels(recs_es::Vector{LightXML.XMLElement})
-    chan_xml = XmlNode("CHANNEL", XmlNode[], ["name", "filename", "position"])
-    proc_xml = XmlNode("PROCESSOR", chan_xml, ["id"])
-    # find recursive attributes for each recording element, and then compare the sets
 end
 
 type XmlNode
     node_tag::String
     daughter_el::Vector{XmlNode}
     attr::Vector{String}
+end
+
+function recordings_are_consistent(rec_es::Vector{LightXML.XMLElement})
+    chan_xml = XmlNode("CHANNEL", XmlNode[], ["name", "filename"])
+    proc_xml = XmlNode("PROCESSOR", [chan_xml], ["id"])
+    nrec = length(rec_es)
+    attr_sets = Vector{Set{String}}(nrec)
+    for (i, rec_e) in enumerate(rec_es)
+        attr_sets[i] = Set(recurse_xml_attr(rec_e, proc_xml))
+    end
+    return all(x -> x == attr_sets[1], view(attr_sets, 2:nrec))
 end
 
 function recurse_xml_attr(e::LightXML.XMLElement, node_tree::XmlNode)
