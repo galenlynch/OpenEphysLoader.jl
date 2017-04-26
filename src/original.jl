@@ -25,7 +25,8 @@ Base.showerror(io::IO, e::CorruptedException) = print(io, "Corrupted Exception: 
 
 ### Constants for parsing header ###
 const HEADER_N_BYTES = 1024
-const HEADER_DATEFORMAT = Dates.DateFormat("d-u-y HHMMSS")
+const HEADER_DATE_REGEX = r"^(\d{1,2}-\p{L}{3}-\d{4}) ([1-2]?\d)([0-5]\d)([1-5]?\d)"
+const HEADER_DATEFORMAT = Dates.DateFormat("d-u-y")
 const HEADER_TYPE_MAP = ((MATstr, String), #Format
                         (MATfloat, VersionNumber), #Version
                         (MATint, Int), #headerbytes
@@ -181,7 +182,31 @@ parseline(tup::Tuple) = parseline(tup...)
 "Convert a string to the desired type"
 function parseto end
 parseto{T<:Number}(::Type{T}, str::AbstractString) = parse(str)::T
-parseto(::Type{DateTime}, str::AbstractString) = DateTime(str, HEADER_DATEFORMAT)
+function parseto(::Type{DateTime}, str::AbstractString)
+    m = match(HEADER_DATE_REGEX, str)
+    isa(m, Void) && throw(CorruptedException("Time created is improperly formatted"))
+    d = DateTime(m.captures[1], HEADER_DATEFORMAT)
+    local hr, mn, sc
+    try
+        hr = parse(Int, m.captures[2])
+        mn = parse(Int, m.captures[3])
+        sc = parse(Int, m.captures[4])
+    catch y
+        if isa(y, ArgumentError)
+            throw(CorruptedException("Time created is improperly formatted"))
+        else
+            rethrow(y)
+        end
+    end
+    # Check for ambiguous time
+    if mapreduce(length, +, m.captures[2:4]) == 5
+        if 0 <= rem(hr, 10) <= 5 && 1 <= rem(mn, 10) <= 5 # a 'shifted' parsing would also be valid
+            warn("Header time ", str, " is ambiguous! Assigning the ambiguous digit to hours.")
+        end
+    end
+    dt = d + Dates.Hour(hr) + Dates.Minute(mn) + Dates.Second(sc)
+    return dt
+end
 parseto(::Type{VersionNumber}, str::AbstractString) = VersionNumber(str)
 parseto(::Type{String}, str::AbstractString) = String(str)
 parseto{T<:AbstractString}(::Type{T}, str::T) = str
