@@ -201,6 +201,19 @@ function block_start_pos(blockno::Integer)
     return (blockno - 1) * CONT_REC_BLOCK_SIZE + HEADER_N_BYTES
 end
 
+function pos_to_blockno(pos::Integer)
+    if pos < 0
+        throw(ArgumentError("Invalid position"))
+    elseif pos < HEADER_N_BYTES
+        blockno = 0
+    else
+        blockno = fld(pos - HEADER_N_BYTES, CONT_REC_BLOCK_SIZE) + 1
+    end
+    return blockno
+end
+
+blockno_to_start_sampno(blockno::Integer) = (blockno - 1) * CONT_REC_N_SAMP + 1
+
 ### File access and conversion ###
 "Read file data block into data block buffer"
 function read_into!(io::IOStream, block::DataBlock, check::Bool = true)

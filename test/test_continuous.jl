@@ -3,6 +3,7 @@ using OpenEphysLoader, TestContinuous, TestUtilities, Base.Test
 @testset "Continuous" begin
     ### Tests ###
     const samps_per_block = OpenEphysLoader.CONT_REC_N_SAMP
+    const cont_rec_block_size = OpenEphysLoader.CONT_REC_BLOCK_SIZE
     # sampno_to_block
     @test OpenEphysLoader.sampno_to_block(1) == 1
     @test OpenEphysLoader.sampno_to_block(samps_per_block) == 1
@@ -19,6 +20,19 @@ using OpenEphysLoader, TestContinuous, TestUtilities, Base.Test
     # block_start_pos
     @test OpenEphysLoader.block_start_pos(1) == 1024
     @test OpenEphysLoader.block_start_pos(2) == 3094
+
+    # pos_to_blockno
+    @test_throws ArgumentError OpenEphysLoader.pos_to_blockno(-1)
+    @test OpenEphysLoader.pos_to_blockno(0) == 0
+    @test OpenEphysLoader.pos_to_blockno(1023) == 0
+    @test OpenEphysLoader.pos_to_blockno(1024) == 1
+    @test OpenEphysLoader.pos_to_blockno(1025) == 1
+    @test OpenEphysLoader.pos_to_blockno(1024 + cont_rec_block_size) == 2
+
+    # blockno_to_start_sampno
+    @test OpenEphysLoader.blockno_to_start_sampno(1) == 1
+    @test OpenEphysLoader.blockno_to_start_sampno(2) == 1025
+
 
     # verify_tail!
     const badtail = b"razzmatazz"
