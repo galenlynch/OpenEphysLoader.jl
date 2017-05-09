@@ -30,7 +30,7 @@ end
     OEProcessor{T<:AbstractString}
 Abstract type for recording Open Ephys processors.
 """
-abstract OEProcessor{T<:AbstractString}
+@compat abstract type OEProcessor{T<:AbstractString} end
 
 """
     OERhythmProcessor{T<:AbstractString}(proc_e::LightXML.XMLElement)
@@ -134,7 +134,7 @@ Subtypes must have the following fields:
 
 **`children`** `Vector{Int}` IDs of children node
 """
-abstract TreeNode{T}
+@compat abstract type TreeNode{T} end
 
 """
     SignalNode{T<:OEProcessor}
@@ -158,7 +158,7 @@ Contains a group of [`TreeNode`](@ref) in the single required field:
 
 **`nodes`** Indexable list of [`TreeNode`](@ref) elements.
 """
-abstract Tree{T}
+@compat abstract type Tree{T} end
 
 """
     OESignalTree{T<:OEProcessor}(chain_e::LightXML.XMLElement, [recording_anmes::Set])
