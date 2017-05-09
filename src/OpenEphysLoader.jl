@@ -11,7 +11,7 @@ using LightXML, Compat
     showcompact,
     showerror,
     size,
-    IndexStyle,
+    linearindexing,
     getindex,
     setindex!,
     length
