@@ -97,7 +97,7 @@ immutable OriginalHeader{T<:AbstractString, S<:Integer, R<:Real}
     "Volts/bit of ADC values"
     bitvolts::R
 
-    @compat function OriginalHeader{T, S, R}(
+    function (::Type{OriginalHeader{T, S, R}}){T, S, R}(
         format::T,
         version::VersionNumber,
         headerbytes::S,
@@ -109,10 +109,10 @@ immutable OriginalHeader{T<:AbstractString, S<:Integer, R<:Real}
         blocklength::S,
         buffersize::S,
         bitvolts::R
-    ) where {T<:AbstractString, S<:Integer, R<:Real}
+    )
         format == "Open Ephys Data Format" || throw(CorruptedException())
         version == v"0.4" || throw(CorruptedException())
-        return new(
+        return new{T, S, R}(
             format,
             version,
             headerbytes,
