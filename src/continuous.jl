@@ -17,7 +17,7 @@ const CONT_REC_BLOCK_SIZE = CONT_REC_HEAD_SIZE + CONT_REC_BODY_SIZE +
 
 ### Types ###
 "Type to buffer continuous file contents"
-abstract BlockBuffer
+@compat abstract type BlockBuffer end
 
 "Represents the header of each data block"
 type BlockHeader <: BlockBuffer
@@ -93,7 +93,7 @@ and have with the following fields:
 
 **`check`** `Bool` to check each data block's validity.
 """
-abstract OEContArray{T, C<:ContinuousFile} <: OEArray{T}
+@compat abstract type OEContArray{T, C<:ContinuousFile} <: OEArray{T} end
 ### Stuff for code generation ###
 sampletype = Real
 timetype = Real
@@ -161,7 +161,7 @@ length(A::OEContArray) = A.contfile.nsample
 
 size(A::OEContArray) = (length(A),)
 
-linearindexing{T<:OEContArray}(::Type{T}) = Base.LinearFast()
+IndexStyle{T<:OEContArray}(::Type{T}) = Base.IndexLinear()
 
 setindex!(::OEContArray, ::Int) = throw(ReadOnlyMemoryError())
 

@@ -46,7 +46,7 @@ function verify_header(header::OriginalHeader)
     @test header.samplerate == 30000
     @test header.blocklength == 1024
     @test header.buffersize == 1024
-    @test_approx_eq header.bitvolts 0.195
+    @test isapprox(header.bitvolts, 0.195)
 end
 
 ### Tests ###

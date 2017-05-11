@@ -5,10 +5,10 @@ Abstract array for file-backed OpenEphys data.
 All subtypes support a ready-only array interface and should
 be constructable with a single IOStream argument.
 """
-abstract OEArray{T} <: AbstractArray{T, 1}
+@compat abstract type OEArray{T} <: AbstractArray{T, 1} end
 # I'm using types as a enum here, consider changing this?
 "Abstract class for representing matlab code fragments"
-abstract MATLABdata
+@compat abstract type MATLABdata end
 "Type for representing Matlab strings"
 type MATstr <: MATLABdata end
 "Type for representing Matlab integers"
@@ -97,7 +97,7 @@ immutable OriginalHeader{T<:AbstractString, S<:Integer, R<:Real}
     "Volts/bit of ADC values"
     bitvolts::R
 
-    function OriginalHeader(
+    function (::Type{OriginalHeader{T, S, R}}){T, S, R}(
         format::T,
         version::VersionNumber,
         headerbytes::S,
@@ -112,7 +112,7 @@ immutable OriginalHeader{T<:AbstractString, S<:Integer, R<:Real}
     )
         format == "Open Ephys Data Format" || throw(CorruptedException())
         version == v"0.4" || throw(CorruptedException())
-        return new(
+        return new{T, S, R}(
             format,
             version,
             headerbytes,
