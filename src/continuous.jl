@@ -161,7 +161,7 @@ length(A::OEContArray) = A.contfile.nsample
 
 size(A::OEContArray) = (length(A),)
 
-IndexStyle{T<:OEContArray}(::Type{T}) = Base.IndexLinear()
+@compat Base.IndexStyle(::Type{<:OEContArray}) = IndexLinear()
 
 setindex!(::OEContArray, ::Int) = throw(ReadOnlyMemoryError())
 
