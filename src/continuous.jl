@@ -33,6 +33,17 @@ type DataBlock <: BlockBuffer
     body::Vector{UInt8}
     data::Vector{CONT_REC_SAMP_BITTYPE}
     tail::Vector{UInt8}
+    function DataBlock(
+        head::BlockHeader,
+        body::Vector{UInt8},
+        data::Vector{CONT_REC_SAMP_BITTYPE},
+        tail::Vector{UInt8}
+    )
+        length(body) == CONT_REC_BODY_SIZE || error("body length must be ", CONT_REC_BODY_SIZE)
+        length(data) == CONT_REC_N_SAMP || error("data length must be ", CONT_REC_N_SAMP)
+        length(tail) == CONT_REC_TAIL_SIZE || error("data length must be ", CONT_REC_TAIL_SIZE)
+        return new(head, body, data, tail)
+    end
 end
 function DataBlock()
     head = BlockHeader()
@@ -241,13 +252,16 @@ read_into!(io::IOStream, head::BlockHeader, ::Bool) = read_into!(io, head)
 
 "Convert the wacky data format in OpenEphys continuous files"
 function convert_block!(block::DataBlock)
-    # block.body will be modified by this call! reinterpret returns a reference
-    contents = reinterpret(CONT_REC_SAMP_BITTYPE, block.body) # readbuff is UInt8
-    # Correct for big endianness of this data block
-    for idx in eachindex(contents)
-        @inbounds contents[idx] = ntoh(contents[idx])
+    ptr = Ptr{CONT_REC_SAMP_BITTYPE}(pointer(block.body))
+    if ENDIAN_BOM == 0x04030201
+        # Host is little endian: Always true for now
+        # Correct for big endianness of this data block
+        for idx in 1:CONT_REC_N_SAMP
+            unsafe_store!(ptr, ntoh(unsafe_load(ptr, idx)), idx)
+        end
     end
-    copy!(block.data, contents)
+    unsafe_copy!(pointer(block.data), ptr, CONT_REC_N_SAMP)
+    return block.data
 end
 
 ### Methods to access data in buffer ###
