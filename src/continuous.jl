@@ -241,13 +241,21 @@ read_into!(io::IOStream, head::BlockHeader, ::Bool) = read_into!(io, head)
 
 "Convert the wacky data format in OpenEphys continuous files"
 function convert_block!(block::DataBlock)
-    # block.body will be modified by this call! reinterpret returns a reference
-    contents = reinterpret(CONT_REC_SAMP_BITTYPE, block.body) # readbuff is UInt8
-    # Correct for big endianness of this data block
-    for idx in eachindex(contents)
-        @inbounds contents[idx] = ntoh(contents[idx])
+    ptr = Ptr{CONT_REC_SAMP_BITTYPE}(pointer(block.body))
+    len = length(block.body)
+    nsamp = len ÷ sizeof(CONT_REC_SAMP_BITTYPE)
+    if ENDIAN_BOM == 0x04030201
+        # Host is little endian: Always true for now
+        # Correct for big endianness of this data block
+        for idx in 1:nsamp
+            unsafe_store!(ptr, ntoh(unsafe_load(ptr, idx)), idx)
+        end
     end
-    copy!(block.data, contents)
+    if length(block.data) < nsamp
+        throw(BoundsError(block.data, nsamp))
+    end
+    unsafe_copy!(pointer(block.data), ptr, nsamp)
+    return block.data
 end
 
 ### Methods to access data in buffer ###
