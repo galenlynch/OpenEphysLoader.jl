@@ -71,7 +71,7 @@ immutable ContinuousFile{T<:Integer, S<:Integer, H<:OriginalHeader}
     "IOStream for open continuous file"
     io::IOStream
     "Number of samples in file"
-    nsample::Tio = open("/run/user/1000/gvfs/smb-share:server=feebox4.mit.edu,share=galen/screening/6821/2016-10-27/6821_d000815_20161027T165457chan0.dat", "r")
+    nsample::T
     "Number of data blocks in file"
     nblock::S
     "File header"
