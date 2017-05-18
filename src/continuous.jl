@@ -33,6 +33,17 @@ type DataBlock <: BlockBuffer
     body::Vector{UInt8}
     data::Vector{CONT_REC_SAMP_BITTYPE}
     tail::Vector{UInt8}
+    function DataBlock(
+        head::BlockHeader,
+        body::Vector{UInt8},
+        data::Vector{CONT_REC_SAMP_BITTYPE},
+        tail::Vector{UInt8}
+    )
+        length(body) == CONT_REC_BODY_SIZE || error("body length must be ", CONT_REC_BODY_SIZE)
+        length(data) == CONT_REC_N_SAMP || error("data length must be ", CONT_REC_N_SAMP)
+        length(tail) == CONT_REC_TAIL_SIZE || error("data length must be ", CONT_REC_TAIL_SIZE)
+        return new(head, body, data, tail)
+    end
 end
 function DataBlock()
     head = BlockHeader()
@@ -60,7 +71,7 @@ immutable ContinuousFile{T<:Integer, S<:Integer, H<:OriginalHeader}
     "IOStream for open continuous file"
     io::IOStream
     "Number of samples in file"
-    nsample::T
+    nsample::Tio = open("/run/user/1000/gvfs/smb-share:server=feebox4.mit.edu,share=galen/screening/6821/2016-10-27/6821_d000815_20161027T165457chan0.dat", "r")
     "Number of data blocks in file"
     nblock::S
     "File header"
@@ -242,19 +253,14 @@ read_into!(io::IOStream, head::BlockHeader, ::Bool) = read_into!(io, head)
 "Convert the wacky data format in OpenEphys continuous files"
 function convert_block!(block::DataBlock)
     ptr = Ptr{CONT_REC_SAMP_BITTYPE}(pointer(block.body))
-    len = length(block.body)
-    nsamp = len ÷ sizeof(CONT_REC_SAMP_BITTYPE)
     if ENDIAN_BOM == 0x04030201
         # Host is little endian: Always true for now
         # Correct for big endianness of this data block
-        for idx in 1:nsamp
+        for idx in 1:CONT_REC_N_SAMP
             unsafe_store!(ptr, ntoh(unsafe_load(ptr, idx)), idx)
         end
     end
-    if length(block.data) < nsamp
-        throw(BoundsError(block.data, nsamp))
-    end
-    unsafe_copy!(pointer(block.data), ptr, nsamp)
+    unsafe_copy!(pointer(block.data), ptr, CONT_REC_N_SAMP)
     return block.data
 end
 
