@@ -205,7 +205,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Public",
     "title": "OpenEphysLoader.OEChannel",
     "category": "Type",
-    "text": "OEChannel{T<:AbstractString}\n\nType for continuous recording channel metadata\n\nFields\n\nname T of channel name\n\nnumber Int of channel number in GUI\n\nbitvolts Float64 of volts per ADC bit\n\nposition Int position of data in file.\n\nfilename T name of associated .continuous file\n\n\n\n"
+    "text": "OEChannel{T<:AbstractString}\n\nType for continuous recording channel metadata\n\nFields\n\nname T of channel name\n\nnumber Int of channel number in GUI\n\nbitvolts Float64 of volts per ADC bit\n\nposition Vector{Int} vector of start position in the file for each recording's data.\n\nfilename T name of associated .continuous file\n\n\n\n"
 },
 
 {
