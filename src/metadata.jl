@@ -610,7 +610,7 @@ show(io::IO, a::SignalNode) = show(io, a.content)
 showfields(io::IO, a::Any) = showfields(IOContext(io, :depth => 0), a)
 function showfields(io::IOContext, a::Any)
     depth = get(io, :depth, 0)
-    pad = string(("  " for n = 1:depth)...)
+    pad = "  " ^ depth
     fields = fieldnames(a)
     depth > 0 && print(io, '\n')
     next_io = IOContext(io, :depth => depth + 1)
