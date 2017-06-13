@@ -55,7 +55,11 @@ end
     filecontext(write_fheader_fun()) do io
         header = OriginalHeader(io)
         verify_header(header)
+        @test (show(DevNull, header); true) # test that it does not error
+        @test (showcompact(DevNull, header); true)
     end
+
+    @test (showerror(DevNull, CorruptedException("test")); true)
 
     # truncated header
     filecontext(write_fheader_fun(512)) do io

@@ -209,7 +209,6 @@ function parseto(::Type{DateTime}, str::AbstractString)
 end
 parseto(::Type{VersionNumber}, str::AbstractString) = VersionNumber(str)
 parseto(::Type{String}, str::AbstractString) = String(str)
-parseto{T<:AbstractString}(::Type{T}, str::T) = str
 
 "read a Matlab source line"
 function matread{T<:MATLABdata, S<:AbstractString}(::Type{T}, str::S)

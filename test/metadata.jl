@@ -71,6 +71,10 @@ test_dir = joinpath(dirname(@__FILE__), "data")
     test_fields(expermeta, expermeta_ans..., recordings = false, settings = false)
     @test ! isempty(expermeta.recordings)
     test_fields(expermeta.recordings[1], recording_ans..., recording_processors = false)
+    @test (show(DevNull, settings.recording_chain); true) # Test that this does not error
+    @test (show(DevNull, settings); true)
+    @test (show(DevNull, expermeta.recordings[1]); true)
+    @test (show(DevNull, expermeta); true)
 
     #plug in settings
     @test_throws CorruptedException metadata(
