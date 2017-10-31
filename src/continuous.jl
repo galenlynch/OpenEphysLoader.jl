@@ -85,6 +85,16 @@ function ContinuousFile(io::IOStream)
 end
 
 """
+Abstract array for file-backed OpenEphys data.
+
+All subtypes support a ready-only array interface and should
+be constructable with a single IOStream argument.
+"""
+@compat abstract type OEArray{T} <: AbstractArray{T, 1} end
+
+setindex!(::OEArray, ::Int) = throw(ReadOnlyMemoryError())
+
+"""
 Abstract array for file-backed continuous OpenEphys data.
 
 Will throw [`CorruptedException`](@ref) if the data file has
@@ -174,7 +184,6 @@ size(A::OEContArray) = (length(A),)
 
 @compat Base.IndexStyle(::Type{<:OEContArray}) = IndexLinear()
 
-setindex!(::OEContArray, ::Int) = throw(ReadOnlyMemoryError())
 
 function getindex(A::OEContArray, i::Integer)
     prepare_block!(A, i)

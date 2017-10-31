@@ -1,12 +1,5 @@
 # Type system for original files and header constants
-"""
-Abstract array for file-backed OpenEphys data.
 
-All subtypes support a ready-only array interface and should
-be constructable with a single IOStream argument.
-"""
-@compat abstract type OEArray{T} <: AbstractArray{T, 1} end
-# I'm using types as a enum here, consider changing this?
 "Abstract class for representing matlab code fragments"
 @compat abstract type MATLABdata end
 "Type for representing Matlab strings"
