@@ -126,7 +126,15 @@ for (typename, typeparam, buffertype, defaulttype) = arraytypes
         function $(typename){T, C<:ContinuousFile}(
             ::Type{T}, contfile::C, check::Bool = true)
             if check
-                check_filesize(contfile.io) || throw(CorruptedException())
+                if ! check_filesize(contfile.io)
+                    throw(CorruptedException(string(
+                        "\nThe size of this file indicates that it cannot be well-formed.\n",
+                        "This likely means that the last data block is missing samples.\n",
+                        "HINT: To attempt access to the remaining contents of this file, use:\n",
+                        $(typename),
+                        "(T, io, false) to turn off this check."
+                    )))
+                end
             end
             block = $(buffertype)()
             return $(typename){T, C}(contfile, block, 0, check)
@@ -190,7 +198,7 @@ function prepare_block!(A::OEContArray, i::Integer)
     if blockno != A.blockno
         seek_to_block(A.contfile.io, blockno)
         goodread = read_into!(A.contfile.io, A.block, A.check)
-        goodread || throw(CorruptedException())
+        goodread || throw(CorruptedException("Data block $blockno is malformed"))
         A.blockno = blockno
     end
 end

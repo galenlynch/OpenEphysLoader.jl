@@ -110,8 +110,8 @@ immutable OriginalHeader{T<:AbstractString, S<:Integer, R<:Real}
         buffersize::S,
         bitvolts::R
     )
-        format == "Open Ephys Data Format" || throw(CorruptedException())
-        version == v"0.4" || throw(CorruptedException())
+        format == "Open Ephys Data Format" || throw(CorruptedException("Header is malformed"))
+        version == v"0.4" || throw(CorruptedException("Header is malformed"))
         return new{T, S, R}(
             format,
             version,
@@ -164,9 +164,9 @@ is at the beginning of the file.
 function OriginalHeader(io::IOStream)
     # Read the header from the IOStream and separate on semicolons
     head = read(io, HEADER_N_BYTES)
-    length(head) == HEADER_N_BYTES || throw(CorruptedException())
+    length(head) == HEADER_N_BYTES || throw(CorruptedException("Header is malformed"))
     headstr = transcode(String, head)
-    isvalid(headstr) || throw(CorruptedException())
+    isvalid(headstr) || throw(CorruptedException("Header is malformed"))
     substrs =  split(headstr, ';', keep = false)
     resize!(substrs, N_HEADER_LINE)
     return OriginalHeader(
@@ -218,7 +218,7 @@ function matread{T<:MATLABdata, S<:AbstractString}(::Type{T}, str::S)
     local m
     if ismatch(regex, str)
         m = match(rx(T), str)
-        isempty(m.captures) && throw(CorruptedException())
+        isempty(m.captures) && throw(CorruptedException("Cannot parse header"))
     end
     return S(m.captures[1])
 end
