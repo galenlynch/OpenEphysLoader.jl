@@ -165,7 +165,7 @@ Contains a group of [`TreeNode`](@ref) in the single required field:
 
 Signal tree for recording processors. Since [`OpenEphysLoader`](@ref)
 currently on works on `.continuous` file types, this will search for the
-first [`OERhythmProcessor`](@src) and make a signal tree up to that point.
+first [`OERhythmProcessor`](@ref) and make a signal tree up to that point.
 
 Construct with a XML signalchain element, and a set of processor names that
 are valid recording nodes.

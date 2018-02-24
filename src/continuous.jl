@@ -163,7 +163,7 @@ $arraypreamble numbers.
     JointArray$arrayargs
 $arraypreamble data. Returns a tuple of type `type`, whose
 values represent `(samplevalue, timestamp, recordingnumber)`. For a description of
-each, see [`SampleArray`](@ref), [`TimeArray`](@src), and [`RecNoArray`](@ref),
+each, see [`SampleArray`](@ref), [`TimeArray`](@ref), and [`RecNoArray`](@ref),
 respectively.
 """ JointArray
 
