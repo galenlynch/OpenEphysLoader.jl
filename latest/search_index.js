@@ -349,7 +349,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Internals",
     "title": "OpenEphysLoader.OESignalTree",
     "category": "Type",
-    "text": "OESignalTree{T<:OEProcessor}(chain_e::LightXML.XMLElement, [recording_anmes::Set])\n\nSignal tree for recording processors. Since OpenEphysLoader currently on works on .continuous file types, this will search for the first OERhythmProcessor and make a signal tree up to that point.\n\nConstruct with a XML signalchain element, and a set of processor names that are valid recording nodes.\n\nSee Tree for field information.\n\n\n\n"
+    "text": "OESignalTree{T<:OEProcessor}(chain_e::LightXML.XMLElement, [recording_names::Set])\n\nSignal tree for recording processors. Since OpenEphysLoader currently on works on .continuous file types, this will search for the first OERhythmProcessor and make a signal tree up to that point.\n\nConstruct with a XML signalchain element, and a set of processor names that are valid recording nodes.\n\nSee Tree for field information.\n\n\n\n"
 },
 
 {
