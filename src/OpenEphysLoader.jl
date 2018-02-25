@@ -6,7 +6,7 @@ Provides array interfaces to file contents, without loading the entire file into
 """
 module OpenEphysLoader
 # Module to interact with Open Ephys files
-using LightXML, Compat
+using LightXML
 import Base: show,
     showcompact,
     showerror,
