@@ -13,7 +13,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Home",
     "title": "OpenEphysLoader.jl Documentation",
     "category": "section",
-    "text": "A set of tools to load data files made by the OpenEphys GUInote: Note\nThis module is experimental, and may damage your data. No module functions intentionally modify the contents of data files, but use this module at your own risk."
+    "text": "A set of tools to load data files made by the Open Ephys GUI"
 },
 
 {
@@ -21,7 +21,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Home",
     "title": "Package Features",
     "category": "section",
-    "text": "Read contents of continuous data files without loading the entire file into memory\nArray interface to sample values, time stamps, and recording numbers\nFlexibly typed output provides access to raw sample values or converted voltage values\nAccess metadata about Open Ephys recordings"
+    "text": "Provides easy access to sample values, time stamps, and recording numbers through an Array interface.\nData can be accessed in their raw form, or converted to voltage and seconds.\nAccessing a data file does not require loading the entirety of its contents into RAM.\nProvides tools to read the metadata for Open Ephys recordings."
 },
 
 {
@@ -29,7 +29,55 @@ var documenterSearchIndex = {"docs": [
     "page": "Home",
     "title": "Example Usage",
     "category": "section",
-    "text": "OpenEphysLoader.jl provides array types to access file contents. Values accessed through these subtypes of OEArray have an array interface backed by file contents, instead of memory.docpath = @__FILE__()\ndocdir = dirname(docpath)\nrelloadpath = joinpath(docdir, \"../test/data\")\ndatadir = realpath(relloadpath)\nabsloadfile = joinpath(datadir, \"100_AUX1.continuous\")\nopen(absloadfile, \"r\") do dataio\n    global databytes = read(dataio, 3094)\nend\npath, tmpio = mktemp()\ntry\n    write(tmpio, databytes)\nfinally\n    close(tmpio)\nendusing OpenEphysLoader\nopen(path, \"r\") do io\n    A = SampleArray(io)\n    A[1:3]\nendTo pull the entire file contents into memory, use Array(OEArray).The metadata of recordings can be accessed using the metadata function:using OpenEphysLoader\nmeta = metadata(datadir)rm(path)"
+    "text": "Data in a file can be accessed by creating a SampleArray, TimeArray, or JointArray. These arrays can be constructed with a IOStream at the beginning of an open .continuous data file."
+},
+
+{
+    "location": "index.html#Accessing-sample-values-1",
+    "page": "Home",
+    "title": "Accessing sample values",
+    "category": "section",
+    "text": "For this example, we will demonstrate how to access sample values using SampleArray.docpath = @__FILE__()\ndocdir = dirname(docpath)\nrelloadpath = joinpath(docdir, \"../test/data\")\ndatadir = realpath(relloadpath)\nabsloadfile = joinpath(datadir, \"100_AUX1.continuous\")\nopen(absloadfile, \"r\") do dataio\n    global databytes = read(dataio, 3094)\nend\npath, tmpio = mktemp()\ntry\n    write(tmpio, databytes)\nfinally\n    close(tmpio)\nendusing OpenEphysLoader\nio = open(path, \"r\") # Where \'path\' is the path to a .continuous file\nA = SampleArray(io) # A is a regular julia matrix\nA[1:3] # Show the first three sampled voltages (in uV) in the fileOnce constructed, SampleArray objects can be used like a normal Julia array.Sample values are stored in .continuous files as ADC codes (Int16 codes for the RHD2000 family), which OpenEphysLoader.jl automatically converts to voltages by default. In order to access the raw ADC codes, pass an integer type (ADC reads are Int16 for the RHD2000 family) as the first argument when constructing a SampleArray:seek(io, 0) # IOStream neeeds to be at the beginning of the data file\nA = SampleArray(Int16, io)\nA[1:3]If a floating point type is specified, the ADC codes are converted into voltages. If no sample type is specified, then the default is Float64.Here we moved the IOStream back to the beginning of the file, because we used this IOStream for our previous example. When using the REPL, if you reuse IOStream objects to create new OpenEphysLoader arrays, you must return the IOStream to the beginning of the file."
+},
+
+{
+    "location": "index.html#Accessing-time-stamps-1",
+    "page": "Home",
+    "title": "Accessing time stamps",
+    "category": "section",
+    "text": "Time stamps can be accessed with TimeArray.Accessing the time stamps returns sample time by default, but the raw sample numbers can be easily accessed as well:io = open(path, \"r\")\nB = TimeArray(io) # Time of each sample in seconds, equivalent to TimeArray(Float64, io)\nB[1]io = open(path, \"r\")\nB = TimeArray(Int64, io) # sample number for each sample\nB[1]"
+},
+
+{
+    "location": "index.html#Accessing-all-information-about-a-sample-1",
+    "page": "Home",
+    "title": "Accessing all information about a sample",
+    "category": "section",
+    "text": "JointArray provides access to the sample value, timestamp, and recording number for each sample. If you want to access both the time stamps and values for samples in a data file, it is most efficient to use a JointArray:io = open(path, \"r\")\nC = JointArray(io) # Time of each sample in seconds\n(sampval, timestamp, recno) = C[1] # Access information about the first sampleElements of the JointArray are three-tuples, which can be destructured as shown above.sampval # inspect the destructured sample value from above"
+},
+
+{
+    "location": "index.html#Copying-file-contents-into-RAM-1",
+    "page": "Home",
+    "title": "Copying file contents into RAM",
+    "category": "section",
+    "text": "Arrays in OpenEphysLoader.jl access the data directly from disk. In order to pull the contents into memory, Create a regular Julia Array from OpenEphysLoader.jl arrays.io = open(path, \"r\")\nA = SampleArray(Int16, io) # Elements of A will be read from disk\nD = Array(A) # This will copy the entire contents of A into a regular Julia array in RAM\nD[1:3]"
+},
+
+{
+    "location": "index.html#Recording-metadata-1",
+    "page": "Home",
+    "title": "Recording metadata",
+    "category": "section",
+    "text": "The metadata of recordings can be accessed using the metadata function:using OpenEphysLoader\nmeta = metadata(datadir) # Where datadir is the path to your recording directory"
+},
+
+{
+    "location": "index.html#Dealing-with-corrupted-files-1",
+    "page": "Home",
+    "title": "Dealing with corrupted files",
+    "category": "section",
+    "text": "For whatever reason, Open Ephys seems to regularly produce data files that are missing samples at the end of the file. Because this library will by default check each file for corruption before attempting to access its data, such files will fail to open with a CorruptedException.In order to access the samples that are intact, use the optional third parameter of SampleArray to disable checking for corruption prior to opening a file:io = open(path, \"r\")\nA = SampleArray(Float64, io, false)\nA[1:3]rm(path)Another common cause of receiving CorruptedException when opening a file is using an IOStream that is not at the beginning of the file. Either use a new IOStream object, or return the IOStream to the beginning of file with seek(io, 0) where io is the name of the IOStream variable."
 },
 
 {
@@ -77,7 +125,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Public",
     "title": "OpenEphysLoader.OEContArray",
     "category": "Type",
-    "text": "Abstract array for file-backed continuous OpenEphys data.\n\nWill throw CorruptedException if the data file has a corrupt OriginalHeader, is not the correct size for an .continuous file, or contains corrupt data blocks.\n\nSubtype of abstract type OEArray are read only, and have with the following fields:\n\nFields\n\ncontfile ContinuousFile for the current file.\n\nblock buffer object for the data blocks in the file.\n\nblockno the current block being access in the file.\n\ncheck Bool to check each data block's validity.\n\n\n\n"
+    "text": "Abstract array for file-backed continuous OpenEphys data.\n\nWill throw CorruptedException if the data file has a corrupt OriginalHeader, is not the correct size for an .continuous file, or contains corrupt data blocks.\n\nSubtype of abstract type OEArray are read only, and have with the following fields:\n\nFields\n\ncontfile ContinuousFile for the current file.\n\nblock buffer object for the data blocks in the file.\n\nblockno the current block being access in the file.\n\ncheck Bool to check each data block\'s validity.\n\n\n\n"
 },
 
 {
@@ -205,7 +253,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Public",
     "title": "OpenEphysLoader.OEChannel",
     "category": "Type",
-    "text": "OEChannel{T<:AbstractString}\n\nType for continuous recording channel metadata\n\nFields\n\nname T of channel name\n\nnumber Int of channel number in GUI\n\nbitvolts Float64 of volts per ADC bit\n\nposition Vector{Int} vector of start position in the file for each recording's data.\n\nfilename T name of associated .continuous file\n\n\n\n"
+    "text": "OEChannel{T<:AbstractString}\n\nType for continuous recording channel metadata\n\nFields\n\nname T of channel name\n\nnumber Int of channel number in GUI\n\nbitvolts Float64 of volts per ADC bit\n\nposition Vector{Int} vector of start position in the file for each recording\'s data.\n\nfilename T name of associated .continuous file\n\n\n\n"
 },
 
 {
@@ -301,7 +349,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Internals",
     "title": "OpenEphysLoader.OESignalTree",
     "category": "Type",
-    "text": "OESignalTree{T<:OEProcessor}(chain_e::LightXML.XMLElement, [recording_anmes::Set])\n\nSignal tree for recording processors. Since OpenEphysLoader currently on works on .continuous file types, this will search for the first OERhythmProcessor and make a signal tree up to that point.\n\nConstruct with a XML signalchain element, and a set of processor names that are valid recording nodes.\n\nSee Tree for field information.\n\n\n\n"
+    "text": "OESignalTree{T<:OEProcessor}(chain_e::LightXML.XMLElement, [recording_names::Set])\n\nSignal tree for recording processors. Since OpenEphysLoader currently on works on .continuous file types, this will search for the first OERhythmProcessor and make a signal tree up to that point.\n\nConstruct with a XML signalchain element, and a set of processor names that are valid recording nodes.\n\nSee Tree for field information.\n\n\n\n"
 },
 
 {
@@ -337,10 +385,10 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "lib/internals.html#OpenEphysLoader.channel_arr",
+    "location": "lib/internals.html#OpenEphysLoader.channel_arr-Union{Tuple{LightXML.XMLElement,Type{T}}, Tuple{LightXML.XMLElement}, Tuple{T}} where T<:AbstractString",
     "page": "Internals",
     "title": "OpenEphysLoader.channel_arr",
-    "category": "Function",
+    "category": "Method",
     "text": "Parse XML Element PROCESSOR and recover channel metadata.\n\n\n\n"
 },
 
@@ -369,7 +417,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "lib/internals.html#OpenEphysLoader.matread-Tuple{Type{T<:OpenEphysLoader.MATLABdata},S<:AbstractString}",
+    "location": "lib/internals.html#OpenEphysLoader.matread-Union{Tuple{S}, Tuple{T}, Tuple{Type{T},S}} where S<:AbstractString where T<:OpenEphysLoader.MATLABdata",
     "page": "Internals",
     "title": "OpenEphysLoader.matread",
     "category": "Method",
