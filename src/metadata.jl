@@ -161,7 +161,7 @@ Contains a group of [`TreeNode`](@ref) in the single required field:
 abstract type Tree{T} end
 
 """
-    OESignalTree{T<:OEProcessor}(chain_e::LightXML.XMLElement, [recording_anmes::Set])
+    OESignalTree{T<:OEProcessor}(chain_e::LightXML.XMLElement, [recording_names::Set])
 
 Signal tree for recording processors. Since [`OpenEphysLoader`](@ref)
 currently on works on `.continuous` file types, this will search for the
