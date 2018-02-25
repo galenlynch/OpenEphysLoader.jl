@@ -613,7 +613,7 @@ function showfields(io::IOContext, a::Any)
     pad = "  " ^ depth
     fields = fieldnames(a)
     depth > 0 && print(io, '\n')
-    next_io = IOContext(io, :depth => depth + 1)
+    next_io = IOContext(IOContext(io, :typeinfo => Any), :depth => depth + 1)
     for field in fields
         print(io, pad, "$field: ")
         show(next_io, getfield(a, field))
