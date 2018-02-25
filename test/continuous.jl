@@ -1,5 +1,5 @@
 module TestContinuous
-using OpenEphysLoader, TestUtilities, TestOriginal, Base.Test
+using OpenEphysLoader, Main.TestUtilities, Main.TestOriginal, Base.Test
 # Helper functions to test OpenEphysLoader's handling of
 # continuous files
 

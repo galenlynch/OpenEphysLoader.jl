@@ -1,5 +1,5 @@
 module TestMetadata
-using OpenEphysLoader, TestUtilities, Base.Test
+using OpenEphysLoader, Main.TestUtilities, Base.Test
 
 test_dir = joinpath(dirname(@__FILE__), "data")
 

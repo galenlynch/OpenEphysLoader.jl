@@ -1,4 +1,4 @@
-using OpenEphysLoader, TestContinuous, TestUtilities, Base.Test
+using OpenEphysLoader, Main.TestContinuous, Main.TestUtilities, Base.Test
 
 @testset "Continuous" begin
     ### Tests ###

@@ -1,5 +1,5 @@
 module TestOriginal
-using OpenEphysLoader, TestUtilities, Base.Test
+using OpenEphysLoader, Main.TestUtilities, Base.Test
 
 export write_fheader_fun,
     verify_header
