@@ -10,14 +10,14 @@ be constructable with a single IOStream argument.
 "Abstract class for representing matlab code fragments"
 @compat abstract type MATLABdata end
 "Type for representing Matlab strings"
-type MATstr <: MATLABdata end
+struct MATstr <: MATLABdata end
 "Type for representing Matlab integers"
-type MATint <: MATLABdata end
+struct MATint <: MATLABdata end
 "type for representing Matlab floatingpoint numbers"
-type MATfloat <: MATLABdata end
+struct MATfloat <: MATLABdata end
 
 "Exception type to indicate a malformed data file"
-type CorruptedException <: Exception
+struct CorruptedException <: Exception
     message::String
 end
 CorruptedException() = CorruptedException("")
@@ -73,7 +73,7 @@ not an "OpenEphys" data format, or not version 0.4 of the data format.
 
 **`bitvolts`** are the Volts per ADC bit.
 """
-immutable OriginalHeader{T<:AbstractString, S<:Integer, R<:Real}
+struct OriginalHeader{T<:AbstractString, S<:Integer, R<:Real}
     "Data format"
     format::T
     "Version of data format"

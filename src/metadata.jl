@@ -18,7 +18,7 @@ Type for continuous recording channel metadata
 
 **`filename`** `T` name of associated `.continuous` file
 """
-immutable OEChannel{T<:AbstractString}
+struct OEChannel{T<:AbstractString}
     name::T
     number::Int
     bitvolts::Float64
@@ -63,7 +63,7 @@ Construct with XML element for processor.
 **`channels`** `Vector{OEChannel{T}}` list of [`OEChannel`](@ref) in
 Rhythm processor
 """
-immutable OERhythmProcessor{T<:AbstractString} <: OEProcessor{T}
+struct OERhythmProcessor{T<:AbstractString} <: OEProcessor{T}
     id::Int
     lowcut::Float64
     highcut::Float64
@@ -142,7 +142,7 @@ Node type for OEProcessor signal chain, subtype of [`TreeNode`](@ref).
 
 See [`TreeNode`](@ref) for information on fields.
 """
-type SignalNode{T<:OEProcessor} <: TreeNode{T}
+mutable struct SignalNode{T<:OEProcessor} <: TreeNode{T}
     content::T
     parent::Int
     children::Vector{Int}
@@ -172,7 +172,7 @@ are valid recording nodes.
 
 See [`Tree`](@ref) for field information.
 """
-immutable OESignalTree{T<:OEProcessor} <: Tree{T}
+struct OESignalTree{T<:OEProcessor} <: Tree{T}
     nodes::Vector{SignalNode{T}}
 end
 function OESignalTree(
@@ -214,7 +214,7 @@ is less than `0.4.0` then this will be `0`
 
 **`machine`** `T` hostname of computer running GUI
 """
-immutable OEInfo{T<:AbstractString}
+struct OEInfo{T<:AbstractString}
     gui_version::VersionNumber
     plugin_api_version::VersionNumber
     datetime::DateTime
@@ -256,7 +256,7 @@ Construct with the XML document for `settings.xml`
 **`recording_chain`** [`OESignalTree`](@ref) Signal tree that leads to recording
 processors.
 """
-immutable OESettings{S<:AbstractString, T<:OEProcessor}
+struct OESettings{S<:AbstractString, T<:OEProcessor}
     info::OEInfo{S}
     # only processors that lead to recording nodes
     recording_chain::OESignalTree{T}
@@ -287,7 +287,7 @@ recording element of the `Continuous_Data.openephys` file.
 
 **`recording_processors`** `Vector{T}` list of recording processors
 """
-immutable OERecordingMeta{T<:OEProcessor}
+struct OERecordingMeta{T<:OEProcessor}
     number::Int
     samplerate::Float64
     recording_processors::Vector{T}
@@ -330,7 +330,7 @@ Construct with the [`OESettings`](@ref) from `settings.xml` and XML experiment e
 
 **`settings`** [`OESettings`](@ref) of the `settings.xml` file
 """
-immutable OEExperMeta{S<:AbstractString, T<:OEProcessor}
+struct OEExperMeta{S<:AbstractString, T<:OEProcessor}
     file_version::VersionNumber
     experiment_number::Int
     separate_files::Bool
@@ -501,7 +501,7 @@ function add_continuous_meta!(proc::OERhythmProcessor, proc_e::LightXML.XMLEleme
     end
 end
 
-type XmlNode
+mutable struct XmlNode
     node_tag::String
     daughter_el::Vector{XmlNode}
     attr::Vector{String}

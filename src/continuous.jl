@@ -20,7 +20,7 @@ const CONT_REC_BLOCK_SIZE = CONT_REC_HEAD_SIZE + CONT_REC_BODY_SIZE +
 @compat abstract type BlockBuffer end
 
 "Represents the header of each data block"
-type BlockHeader <: BlockBuffer
+mutable struct BlockHeader <: BlockBuffer
     timestamp::CONT_REC_TIME_BITTYPE
     nsample::CONT_REC_N_SAMP_BITTYPE
     recordingnumber::CONT_REC_REC_NO_BITTYPE
@@ -28,7 +28,7 @@ end
 BlockHeader() = BlockHeader(0, 0, 0)
 
 "Represents the entirety of a data block"
-type DataBlock <: BlockBuffer
+mutable struct DataBlock <: BlockBuffer
     head::BlockHeader
     body::Vector{UInt8}
     data::Vector{CONT_REC_SAMP_BITTYPE}
@@ -67,7 +67,7 @@ Type for an open continuous file.
 
 **`header`** [`OriginalHeader`](@ref) of the current file.
 """
-immutable ContinuousFile{T<:Integer, S<:Integer, H<:OriginalHeader}
+struct ContinuousFile{T<:Integer, S<:Integer, H<:OriginalHeader}
     "IOStream for open continuous file"
     io::IOStream
     "Number of samples in file"
@@ -117,7 +117,7 @@ arraytypes = ((:SampleArray, sampletype, DataBlock, Float64),
 ### Generate array datatypes ###
 for (typename, typeparam, buffertype, defaulttype) = arraytypes
     @eval begin
-        type $(typename){T<:$(typeparam), C<:ContinuousFile} <: OEContArray{T, C}
+        mutable struct $(typename){T<:$(typeparam), C<:ContinuousFile} <: OEContArray{T, C}
             contfile::C
             block::$(buffertype)
             blockno::UInt
