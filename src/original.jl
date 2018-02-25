@@ -1,7 +1,6 @@
 # Type system for original files and header constants
-"""
-Abstract array for file-backed OpenEphys data.
 
+"""
 All subtypes support a ready-only array interface and should
 be constructable with a single IOStream argument.
 """
