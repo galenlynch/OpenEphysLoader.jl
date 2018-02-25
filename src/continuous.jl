@@ -90,7 +90,7 @@ Abstract array for file-backed OpenEphys data.
 All subtypes support a ready-only array interface and should
 be constructable with a single IOStream argument.
 """
-@compat abstract type OEArray{T} <: AbstractArray{T, 1} end
+abstract type OEArray{T} <: AbstractArray{T, 1} end
 
 setindex!(::OEArray, ::Int) = throw(ReadOnlyMemoryError())
 
