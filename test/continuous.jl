@@ -183,7 +183,7 @@ function verify_BlockBuffer(
     block::OpenEphysLoader.DataBlock,
     t::Integer,
     rec::Integer,
-    body::Vector{UInt8},
+    body::AbstractVector{UInt8},
     data::Vector{OpenEphysLoader.CONT_REC_SAMP_BITTYPE},
 )
     verify_BlockBuffer(block.head, t, rec)
@@ -195,7 +195,7 @@ function verify_BlockBuffer(
     block::OpenEphysLoader.BlockHeader,
     t::Integer,
     rec::Integer,
-    ::Vector{UInt8},
+    ::AbstractVector{UInt8},
     ::Vector{OpenEphysLoader.CONT_REC_SAMP_BITTYPE},
 )
     verify_BlockBuffer(block, t, rec)
