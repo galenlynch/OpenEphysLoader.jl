@@ -30,7 +30,7 @@ end
     OEProcessor{T<:AbstractString}
 Abstract type for recording Open Ephys processors.
 """
-@compat abstract type OEProcessor{T<:AbstractString} end
+abstract type OEProcessor{T<:AbstractString} end
 
 """
     OERhythmProcessor{T<:AbstractString}(proc_e::LightXML.XMLElement)
@@ -134,7 +134,7 @@ Subtypes must have the following fields:
 
 **`children`** `Vector{Int}` IDs of children node
 """
-@compat abstract type TreeNode{T} end
+abstract type TreeNode{T} end
 
 """
     SignalNode{T<:OEProcessor}
@@ -158,7 +158,7 @@ Contains a group of [`TreeNode`](@ref) in the single required field:
 
 **`nodes`** Indexable list of [`TreeNode`](@ref) elements.
 """
-@compat abstract type Tree{T} end
+abstract type Tree{T} end
 
 """
     OESignalTree{T<:OEProcessor}(chain_e::LightXML.XMLElement, [recording_anmes::Set])
@@ -292,7 +292,7 @@ struct OERecordingMeta{T<:OEProcessor}
     samplerate::Float64
     recording_processors::Vector{T}
 end
-function OERecordingMeta{S, T}(settings::OESettings{S, T}, rec_e::LightXML.XMLElement)
+function OERecordingMeta(settings::OESettings{S, T}, rec_e::LightXML.XMLElement) where {S, T}
     no_attr = attribute(rec_e, "number", required=true)
     number = parse(Int, no_attr)
     samprate_attr = attribute(rec_e, "samplerate", required=true)
@@ -337,7 +337,7 @@ struct OEExperMeta{S<:AbstractString, T<:OEProcessor}
     recordings::Vector{OERecordingMeta{T}}
     settings::OESettings{S, T}
 end
-function OEExperMeta{S, T}(settings::OESettings{S, T}, exper_e::LightXML.XMLElement)
+function OEExperMeta(settings::OESettings{S, T}, exper_e::LightXML.XMLElement) where {S, T}
     # Get version
     ver_attr = attribute(exper_e, "version", required=true)
     ## Version numbers in OE files are floats, often see 0.400000000000002
@@ -409,7 +409,7 @@ end
 """
 Parse XML Element PROCESSOR and recover channel metadata.
 """
-function channel_arr{T<:AbstractString}(proc_e::LightXML.XMLElement, ::Type{T} = String)
+function channel_arr(proc_e::LightXML.XMLElement, ::Type{T} = String) where {T<:AbstractString}
     # Assumes that channels are sorted!
     # Channels
     channel_vec = get_elements_by_tagname(proc_e, "CHANNEL")

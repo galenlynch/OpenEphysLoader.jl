@@ -5,10 +5,10 @@ Abstract array for file-backed OpenEphys data.
 All subtypes support a ready-only array interface and should
 be constructable with a single IOStream argument.
 """
-@compat abstract type OEArray{T} <: AbstractArray{T, 1} end
+abstract type OEArray{T} <: AbstractArray{T, 1} end
 # I'm using types as a enum here, consider changing this?
 "Abstract class for representing matlab code fragments"
-@compat abstract type MATLABdata end
+abstract type MATLABdata end
 "Type for representing Matlab strings"
 struct MATstr <: MATLABdata end
 "Type for representing Matlab integers"
@@ -97,7 +97,7 @@ struct OriginalHeader{T<:AbstractString, S<:Integer, R<:Real}
     "Volts/bit of ADC values"
     bitvolts::R
 
-    function (::Type{OriginalHeader{T, S, R}}){T, S, R}(
+    function OriginalHeader{T, S, R}(
         format::T,
         version::VersionNumber,
         headerbytes::S,
@@ -109,7 +109,7 @@ struct OriginalHeader{T<:AbstractString, S<:Integer, R<:Real}
         blocklength::S,
         buffersize::S,
         bitvolts::R
-    )
+    ) where {T<:AbstractString, S<:Integer, R<:Real}
         format == "Open Ephys Data Format" || throw(CorruptedException("Header is malformed"))
         version == v"0.4" || throw(CorruptedException("Header is malformed"))
         return new{T, S, R}(
@@ -128,7 +128,7 @@ struct OriginalHeader{T<:AbstractString, S<:Integer, R<:Real}
     end
 end
 
-function OriginalHeader{T,S,R}(
+function OriginalHeader(
     format::T,
     version::VersionNumber,
     headerbytes::S,
@@ -140,7 +140,7 @@ function OriginalHeader{T,S,R}(
     blocklength::S,
     buffersize::S,
     bitvolts::R
-)
+) where {T<:AbstractString,S<:Integer,R<:Real}
     return OriginalHeader{T,S,R}(
         format,
         version,
@@ -176,12 +176,12 @@ end
 
 "Parse a line of Matlab source code"
 function parseline end
-parseline{T, M<:MATLABdata}(::Type{M}, ::Type{T}, str::AbstractString) = parseto(T, matread(M, str))::T
+parseline(::Type{M}, ::Type{T}, str::AbstractString) where {T, M<:MATLABdata} = parseto(T, matread(M, str))::T
 parseline(tup::Tuple) = parseline(tup...)
 
 "Convert a string to the desired type"
 function parseto end
-parseto{T<:Number}(::Type{T}, str::AbstractString) = parse(str)::T
+parseto(::Type{T}, str::AbstractString) where {T<:Number} = parse(str)::T
 function parseto(::Type{DateTime}, str::AbstractString)
     m = match(HEADER_DATE_REGEX, str)
     isa(m, Void) && throw(CorruptedException("Time created is improperly formatted"))
@@ -209,10 +209,10 @@ function parseto(::Type{DateTime}, str::AbstractString)
 end
 parseto(::Type{VersionNumber}, str::AbstractString) = VersionNumber(str)
 parseto(::Type{String}, str::AbstractString) = String(str)
-parseto{T<:AbstractString}(::Type{T}, str::T) = str
+parseto(::Type{T}, str::T) where {T<:AbstractString} = str
 
 "read a Matlab source line"
-function matread{T<:MATLABdata, S<:AbstractString}(::Type{T}, str::S)
+function matread(::Type{T}, str::S) where {T<:MATLABdata, S<:AbstractString}
     regex = rx(T)
     goodread = false
     local m

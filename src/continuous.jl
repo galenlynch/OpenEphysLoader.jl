@@ -17,7 +17,7 @@ const CONT_REC_BLOCK_SIZE = CONT_REC_HEAD_SIZE + CONT_REC_BODY_SIZE +
 
 ### Types ###
 "Type to buffer continuous file contents"
-@compat abstract type BlockBuffer end
+abstract type BlockBuffer end
 
 "Represents the header of each data block"
 mutable struct BlockHeader <: BlockBuffer
@@ -104,7 +104,7 @@ and have with the following fields:
 
 **`check`** `Bool` to check each data block's validity.
 """
-@compat abstract type OEContArray{T, C<:ContinuousFile} <: OEArray{T} end
+abstract type OEContArray{T, C<:ContinuousFile} <: OEArray{T} end
 ### Stuff for code generation ###
 sampletype = Real
 timetype = Real
@@ -123,8 +123,7 @@ for (typename, typeparam, buffertype, defaulttype) = arraytypes
             blockno::UInt
             check::Bool
         end
-        function $(typename){T, C<:ContinuousFile}(
-            ::Type{T}, contfile::C, check::Bool = true)
+        function $(typename)(::Type{T}, contfile::C, check::Bool = true) where {T, C<:ContinuousFile}
             if check
                 if ! check_filesize(contfile.io)
                     throw(CorruptedException(string(
@@ -139,7 +138,7 @@ for (typename, typeparam, buffertype, defaulttype) = arraytypes
             block = $(buffertype)()
             return $(typename){T, C}(contfile, block, 0, check)
         end
-        function $(typename){T}(::Type{T}, io::IOStream, check::Bool = true)
+        function $(typename)(::Type{T}, io::IOStream, check::Bool = true) where {T}
             return $(typename)(T, ContinuousFile(io), check)
         end
         function $(typename)(io::IOStream, check::Bool=true)
@@ -180,7 +179,7 @@ length(A::OEContArray) = A.contfile.nsample
 
 size(A::OEContArray) = (length(A),)
 
-@compat Base.IndexStyle(::Type{<:OEContArray}) = IndexLinear()
+Base.IndexStyle(::Type{T}) where {T<:OEContArray} = IndexLinear()
 
 setindex!(::OEContArray, ::Int) = throw(ReadOnlyMemoryError())
 
@@ -297,31 +296,33 @@ function block_data(A::JointArray, rel_idx::Integer)
 end
 
 ### Methods to convert raw values into desired ones ##
-convert_data{A<:OEContArray}(OE::A, data) = convert_data(A, OE.contfile.header, data)
-function convert_data{T<:AbstractFloat, C}(::Type{SampleArray{T, C}},
-                                              H::OriginalHeader, data::Integer)
+convert_data(OE::A, data) where {A<:OEContArray} = convert_data(A, OE.contfile.header, data)
+function convert_data(
+    ::Type{SampleArray{T, C}}, H::OriginalHeader, data::Integer
+) where {T<:AbstractFloat, C}
     return convert(T, data * H.bitvolts)
 end
-function convert_data{T<:Integer, C}(::Type{SampleArray{T, C}},
-                                              ::OriginalHeader, data::Integer)
+function convert_data(
+    ::Type{SampleArray{T, C}}, ::OriginalHeader, data::Integer
+) where {T<:Integer, C}
     return convert(T, data)
 end
-function convert_data{T<:AbstractFloat, C}(::Type{TimeArray{T, C}},
-                                              H::OriginalHeader, data::Integer)
+function convert_data(
+    ::Type{TimeArray{T, C}}, H::OriginalHeader, data::Integer
+) where {T<:AbstractFloat, C}
     return convert(T, (data - 1) / H.samplerate) # First sample is at time zero
 end
-function convert_data{T<:Integer, C}(::Type{TimeArray{T, C}},
-                                              ::OriginalHeader, data::Integer)
+function convert_data(
+    ::Type{TimeArray{T, C}}, ::OriginalHeader, data::Integer
+) where {T<:Integer, C}
     return convert(T, data)
 end
-function convert_data{T, C}(
-    ::Type{RecNoArray{T, C}},
-    ::OriginalHeader,
-    data::Integer)
+function convert_data(::Type{RecNoArray{T, C}}, ::OriginalHeader, data::Integer) where {T, C}
     return convert(T, data)
 end
-function convert_data{S<:sampletype,T<:timetype,R<:rectype,C}(
-    ::Type{JointArray{Tuple{S,T,R},C}}, H::OriginalHeader, data::Tuple)
+function convert_data(
+    ::Type{JointArray{Tuple{S,T,R},C}}, H::OriginalHeader, data::Tuple
+) where {S<:sampletype,T<:timetype,R<:rectype,C}
     samp = convert_data(SampleArray{S, C}, H, data[1])
     timestamp = convert_data(TimeArray{T, C}, H, data[2])
     recno = convert_data(RecNoArray{R, C}, H, data[3])
