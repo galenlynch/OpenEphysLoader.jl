@@ -223,7 +223,13 @@ struct OEInfo{T<:AbstractString}
 end
 function OEInfo(info_e::LightXML.XMLElement)
     ver_e = required_find_element(info_e, "VERSION")
-    gui_version = VersionNumber(content(ver_e))
+    ver_str = content(ver_e)
+    ver_sections = split(ver_str, '.')
+    if length(ver_sections) > 3
+        gui_version = VersionNumber(join(ver_sections[1:3], '.'))
+    else
+        gui_version = VersionNumber(ver_str)
+    end
     if gui_version > v"0.4.0"
         plugin_e = required_find_element(info_e, "PLUGIN_API_VERSION")
         plugin_api = VersionNumber(content(plugin_e))
