@@ -227,6 +227,7 @@ function prepare_block!(A::OEContArray, i::Integer)
         goodread || throw(CorruptedException("Data block $blockno is malformed"))
         A.blockno = blockno
     end
+    nothing
 end
 
 "Move io to data block"
