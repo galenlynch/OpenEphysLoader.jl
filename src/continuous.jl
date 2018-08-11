@@ -119,6 +119,7 @@ and have with the following fields:
 **`check`** `Bool` to check each data block's validity.
 """
 abstract type OEContArray{T, C<:ContinuousFile} <: OEArray{T} end
+
 ### Stuff for code generation ###
 sampletype = Real
 timetype = Real
