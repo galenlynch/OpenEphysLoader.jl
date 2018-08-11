@@ -61,6 +61,8 @@ Type for an open continuous file.
 
 **`io`** `IOStream` object.
 
+**`filepath`** Path to underlying file, possibly empty
+
 **`nsample`** number of samples in a file.
 
 **`nblock`** number of data blocks in a file.
@@ -70,6 +72,8 @@ Type for an open continuous file.
 struct ContinuousFile{T<:Integer, S<:Integer, H<:OriginalHeader}
     "IOStream for open continuous file"
     io::IOStream
+    "Path to file, possibly empty"
+    filepath::String
     "Number of samples in file"
     nsample::T
     "Number of data blocks in file"
@@ -77,11 +81,11 @@ struct ContinuousFile{T<:Integer, S<:Integer, H<:OriginalHeader}
     "File header"
     header::H
 end
-function ContinuousFile(io::IOStream)
+function ContinuousFile(io::IOStream, filepath::AbstractString = "")
     header = OriginalHeader(io) # Read header
     nblock = count_blocks(io)
     nsample = count_data(nblock)
-    return ContinuousFile(io, nsample, nblock, header)
+    return ContinuousFile(io, string(filepath), nsample, nblock, header)
 end
 
 """
@@ -133,7 +137,9 @@ for (typename, typeparam, buffertype, defaulttype) = arraytypes
             blockno::UInt
             check::Bool
         end
-        function $(typename)(::Type{T}, contfile::C, check::Bool = true) where {T, C<:ContinuousFile}
+        function $(typename)(
+            ::Type{T}, contfile::C, check::Bool = true
+        ) where {T, C<:ContinuousFile}
             if check
                 if ! check_filesize(contfile.io)
                     throw(CorruptedException(string(
@@ -148,16 +154,30 @@ for (typename, typeparam, buffertype, defaulttype) = arraytypes
             block = $(buffertype)()
             return $(typename){T, C}(contfile, block, 0, check)
         end
-        function $(typename)(::Type{T}, io::IOStream, check::Bool = true) where {T}
-            return $(typename)(T, ContinuousFile(io), check)
+        function $(typename)(
+            ::Type{T},
+            io::IOStream,
+            check::Bool = true,
+            filepath::AbstractString = ""
+        ) where {T}
+            return $(typename)(T, ContinuousFile(io, filepath), check)
         end
-        function $(typename)(io::IOStream, check::Bool=true)
-            return $(typename)($(defaulttype), io, check)
+        function $(typename)(
+            ::Type{T},
+            filepath::AbstractString,
+            check::Bool = true
+        ) where {T}
+            ior = open(filepath, "r")
+            atexit(() -> close(ior))
+            return $(typename)(T, ior, check, filepath)
+        end
+        function $(typename)(firstarg::Union{IO, AbstractString}, args...)
+            return $(typename)($(defaulttype), firstarg, args...)
         end
     end
 end
 
-const arrayargs = "(type::Type{T}, io::IOStream, [check::Bool])"
+const arrayargs = "([type::Type{T},] file::Union{IO, String}, [check::Bool, filepath::String])"
 const arraypreamble =
     "Subtype of [`OEContArray`](@ref) to provide file backed access to OpenEphys"
 @doc """
@@ -209,6 +229,7 @@ function prepare_block!(A::OEContArray, i::Integer)
         goodread || throw(CorruptedException("Data block $blockno is malformed"))
         A.blockno = blockno
     end
+    nothing
 end
 
 "Move io to data block"
