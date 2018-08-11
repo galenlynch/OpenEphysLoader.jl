@@ -13,7 +13,8 @@ the [Open Ephys GUI](http://www.open-ephys.org/gui/)
 ## Example Usage
 Data in a file can be accessed by creating a [`SampleArray`](@ref), [`TimeArray`](@ref),
 or [`JointArray`](@ref).
-These arrays can be constructed with a `IOStream` at the beginning of an open `.continuous` data file.
+These arrays can be constructed with a `IOStream` at the beginning of an open
+`.continuous` data file, or alternatively the name of a `.continuous` file.
 
 ### Accessing sample values
 For this example, we will demonstrate how to access sample values using `SampleArray`.

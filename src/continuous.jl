@@ -61,6 +61,8 @@ Type for an open continuous file.
 
 **`io`** `IOStream` object.
 
+**`filepath`** Path to underlying file, possibly empty
+
 **`nsample`** number of samples in a file.
 
 **`nblock`** number of data blocks in a file.
@@ -175,7 +177,7 @@ for (typename, typeparam, buffertype, defaulttype) = arraytypes
     end
 end
 
-const arrayargs = "(type::Type{T}, io::IOStream, [check::Bool])"
+const arrayargs = "([type::Type{T},] file::Union{IO, String}, [check::Bool, filepath::String])"
 const arraypreamble =
     "Subtype of [`OEContArray`](@ref) to provide file backed access to OpenEphys"
 @doc """
