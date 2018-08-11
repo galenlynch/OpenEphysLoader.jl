@@ -11,7 +11,6 @@ import Base: show,
     showcompact,
     showerror,
     size,
-    linearindexing,
     getindex,
     setindex!,
     length
