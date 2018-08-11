@@ -15,7 +15,7 @@ export test_OEContArray,
     bad_file
 
 ### Test array contents ###
-function test_OEContArray{T<:OEContArray}(
+function test_OEContArray(
     io::IOStream,
     ::Type{T},
     testtypes::Vector{DataType},
@@ -23,7 +23,7 @@ function test_OEContArray{T<:OEContArray}(
     nblock::Integer,
     recno::Integer,
     startsamp::Integer,
-)
+) where T<:OEContArray
     test_OEContArray_interface(T)
     seekstart(io)
     A = T(io)
@@ -85,45 +85,45 @@ function to_block_contents(D::Vector, blockno::Integer, startsamp::Integer)
 end
 
 
-function test_OEContArray_contents{T<:Real,C}(
+function test_OEContArray_contents(
     A::SampleArray{T, C}, D::Vector, varargs...
-)
+) where {T<:Real,C}
     @test OpenEphysLoader.block_data(A, 1) == A.block.data[1]
     @test OpenEphysLoader.block_data(A, 1024) == A.block.data[1024]
     @test [OpenEphysLoader.convert_data(A, A.block.data[1])] ==
         sample_conversion(T, A.block.data[1:1])
     verify_samples(copy(A), D)
 end
-function test_OEContArray_contents{T<:Real,C}(
+function test_OEContArray_contents(
     A::TimeArray{T, C},
     D::Vector,
     ::Integer,
     startsamp::Integer
-)
+) where {T<:Real,C}
     @test OpenEphysLoader.block_data(A, 1) == A.block.timestamp
     @test OpenEphysLoader.block_data(A, 2) == A.block.timestamp + 1
     @test [OpenEphysLoader.convert_data(A, A.block.timestamp)] ==
         time_conversion(T, A.block.timestamp, 1)
     verify_times(copy(A), startsamp, length(D))
 end
-function test_OEContArray_contents{T<:Integer,C}(
+function test_OEContArray_contents(
     A::RecNoArray{T, C},
     D::Vector,
     recno::Integer,
     ::Integer
-)
+) where {T<:Integer,C}
     @test OpenEphysLoader.block_data(A, 1) == recno
     @test OpenEphysLoader.block_data(A, 2) == recno
     @test OpenEphysLoader.convert_data(A, A.block.recordingnumber) ==
         convert(T, recno)
     verify_recnos(copy(A), recno, length(D))
 end
-function test_OEContArray_contents{S<:Real,T<:Real,R<:Integer,C}(
+function test_OEContArray_contents(
     A::JointArray{Tuple{S,T,R}, C},
     D::Vector,
     recno::Integer,
     startsamp::Integer
-)
+) where {S<:Real,T<:Real,R<:Integer,C}
     @test OpenEphysLoader.block_data(A, 1) == (A.block.data[1],
                                                A.block.head.timestamp,
                                                recno)
@@ -150,8 +150,8 @@ function test_OEContArray_contents{S<:Real,T<:Real,R<:Integer,C}(
     verify_recnos(recnos, recno, nd)
 end
 
-verify_samples{T}(A::Vector{T}, D::Vector) = @test sample_conversion(T, D) == A
-function verify_times{T}(A::Vector{T}, startsamp::Integer, nsamp::Integer)
+verify_samples(A::Vector{T}, D::Vector) where {T} = @test sample_conversion(T, D) == A
+function verify_times(A::Vector{T}, startsamp::Integer, nsamp::Integer) where T
    @test time_conversion(T, startsamp, nsamp) == A
 end
 function verify_recnos(A::Vector, recno::Integer, nsamp::Integer)
@@ -169,7 +169,7 @@ function test_OEArray_interface(A::OEArray)
     @test_throws ErrorException A[1] = A[1]
 end
 
-function test_OEContArray_interface{T<:OEContArray}(::Type{T})
+function test_OEContArray_interface(::Type{T}) where T<:OEContArray
     fields = fieldnames(T)
     @test :contfile in fields
     @test :block in fields
@@ -225,13 +225,13 @@ function damaged_file(io::IOStream, args...; kwargs...)
     bad_blockhead(io)
 end
 
-function write_continuous{T<:Integer}(
+function write_continuous(
     io::IOStream,
     d::AbstractArray{T, 1},
     recno::Integer = 0,
     startsamp::Integer = 1,
     recdelay::Integer = 0
-)
+) where T<:Integer
     nd = length(d)
     if recdelay >= OpenEphysLoader.CONT_REC_N_SAMP
         error("Delay between file start and recording is too long")
@@ -310,7 +310,7 @@ function writeblock(
         write(io, OpenEphysLoader.CONT_REC_END_MARKER)
     end
 end
-function to_OE_bytes{T<:OpenEphysLoader.CONT_REC_SAMP_BITTYPE}(D::AbstractArray{T,1})
+function to_OE_bytes(D::AbstractArray{T,1}) where T<:OpenEphysLoader.CONT_REC_SAMP_BITTYPE
     contents = copy(D)
     for i in eachindex(contents)
         @inbounds contents[i] = hton(contents[i])
@@ -320,22 +320,22 @@ function to_OE_bytes{T<:OpenEphysLoader.CONT_REC_SAMP_BITTYPE}(D::AbstractArray{
 end
 
 ### Utility functions ###
-sample_conversion{T<:Integer, R<:Integer}(::Type{T}, data::AbstractArray{R, 1}) =
+sample_conversion(::Type{T}, data::AbstractArray{R, 1}) where {T<:Integer, R<:Integer} =
     Vector{T}(copy(data))
-sample_conversion{T<:AbstractFloat, R<:Integer}(::Type{T}, data::AbstractArray{R, 1}) =
+sample_conversion(::Type{T}, data::AbstractArray{R, 1}) where {T<:AbstractFloat, R<:Integer} =
     0.195 * Vector{T}(copy(data))
-function time_conversion{T<:Integer}(
+function time_conversion(
     ::Type{T},
     startsamp::Integer,
     nsamp::Integer
-)
+) where T<:Integer
     return T[t for t in startsamp:1:(startsamp + nsamp - 1)]
 end
-function time_conversion{T<:AbstractFloat}(
+function time_conversion(
     ::Type{T},
     startsamp::Integer,
     nsamp::Integer
-)
+) where T<:AbstractFloat
     timepoints = (time_conversion(Int, startsamp, nsamp) - 1) / 30000
     converted_times = similar(timepoints, T)
     copy!(converted_times, timepoints)
