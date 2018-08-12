@@ -29,7 +29,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Home",
     "title": "Example Usage",
     "category": "section",
-    "text": "Data in a file can be accessed by creating a SampleArray, TimeArray, or JointArray. These arrays can be constructed with a IOStream at the beginning of an open .continuous data file."
+    "text": "Data in a file can be accessed by creating a SampleArray, TimeArray, or JointArray. These arrays can be constructed with a IOStream at the beginning of an open .continuous data file, or alternatively the name of a .continuous file."
 },
 
 {
@@ -133,7 +133,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Public",
     "title": "OpenEphysLoader.SampleArray",
     "category": "type",
-    "text": "SampleArray(type::Type{T}, io::IOStream, [check::Bool])\n\nSubtype of OEContArray to provide file backed access to OpenEphys sample values. If type is a floating point type, then the sample value will be converted to voltage (in uV). Otherwise, the sample values will remain the raw ADC integer readings.\n\n\n\n"
+    "text": "SampleArray([type::Type{T},] file::Union{IO, String}, [check::Bool, filepath::String])\n\nSubtype of OEContArray to provide file backed access to OpenEphys sample values. If type is a floating point type, then the sample value will be converted to voltage (in uV). Otherwise, the sample values will remain the raw ADC integer readings.\n\n\n\n"
 },
 
 {
@@ -141,7 +141,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Public",
     "title": "OpenEphysLoader.TimeArray",
     "category": "type",
-    "text": "TimeArray(type::Type{T}, io::IOStream, [check::Bool])\n\nSubtype of OEContArray to provide file backed access to OpenEphys time stamps. If type is a floating point type, then the time stamps will be converted to seconds. Otherwise, the time stamp will be the sample number.\n\n\n\n"
+    "text": "TimeArray([type::Type{T},] file::Union{IO, String}, [check::Bool, filepath::String])\n\nSubtype of OEContArray to provide file backed access to OpenEphys time stamps. If type is a floating point type, then the time stamps will be converted to seconds. Otherwise, the time stamp will be the sample number.\n\n\n\n"
 },
 
 {
@@ -149,7 +149,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Public",
     "title": "OpenEphysLoader.RecNoArray",
     "category": "type",
-    "text": "RecNoArray(type::Type{T}, io::IOStream, [check::Bool])\n\nSubtype of OEContArray to provide file backed access to OpenEphys numbers.\n\n\n\n"
+    "text": "RecNoArray([type::Type{T},] file::Union{IO, String}, [check::Bool, filepath::String])\n\nSubtype of OEContArray to provide file backed access to OpenEphys numbers.\n\n\n\n"
 },
 
 {
@@ -157,7 +157,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Public",
     "title": "OpenEphysLoader.JointArray",
     "category": "type",
-    "text": "JointArray(type::Type{T}, io::IOStream, [check::Bool])\n\nSubtype of OEContArray to provide file backed access to OpenEphys data. Returns a tuple of type type, whose values represent (samplevalue, timestamp, recordingnumber). For a description of each, see SampleArray, TimeArray, and RecNoArray, respectively.\n\n\n\n"
+    "text": "JointArray([type::Type{T},] file::Union{IO, String}, [check::Bool, filepath::String])\n\nSubtype of OEContArray to provide file backed access to OpenEphys data. Returns a tuple of type type, whose values represent (samplevalue, timestamp, recordingnumber). For a description of each, see SampleArray, TimeArray, and RecNoArray, respectively.\n\n\n\n"
 },
 
 {
@@ -181,7 +181,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Public",
     "title": "OpenEphysLoader.ContinuousFile",
     "category": "type",
-    "text": "ContinuousFile(io::IOStream)\n\nType for an open continuous file.\n\nFields\n\nio IOStream object.\n\nnsample number of samples in a file.\n\nnblock number of data blocks in a file.\n\nheader OriginalHeader of the current file.\n\n\n\n"
+    "text": "ContinuousFile(io::IOStream)\n\nType for an open continuous file.\n\nFields\n\nio IOStream object.\n\nfilepath Path to underlying file, possibly empty\n\nnsample number of samples in a file.\n\nnblock number of data blocks in a file.\n\nheader OriginalHeader of the current file.\n\n\n\n"
 },
 
 {
