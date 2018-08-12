@@ -47,9 +47,9 @@ mutable struct DataBlock <: BlockBuffer
 end
 function DataBlock()
     head = BlockHeader()
-    body = Vector{UInt8}(CONT_REC_BODY_SIZE)
-    data = Vector{CONT_REC_SAMP_BITTYPE}(CONT_REC_N_SAMP)
-    tail =  Vector{UInt8}(CONT_REC_TAIL_SIZE)
+    body = @compat Vector{UInt8}(undef, CONT_REC_BODY_SIZE)
+    data = @compat Vector{CONT_REC_SAMP_BITTYPE}(undef, CONT_REC_N_SAMP)
+    tail =  @compat Vector{UInt8}(undef, CONT_REC_TAIL_SIZE)
     DataBlock(head, body, data, tail)
 end
 
@@ -311,7 +311,7 @@ function convert_block!(block::DataBlock)
             unsafe_store!(ptr, ntoh(unsafe_load(ptr, idx)), idx)
         end
     end
-    unsafe_copy!(pointer(block.data), ptr, CONT_REC_N_SAMP)
+    @compat unsafe_copyto!(pointer(block.data), ptr, CONT_REC_N_SAMP)
     return block.data
 end
 

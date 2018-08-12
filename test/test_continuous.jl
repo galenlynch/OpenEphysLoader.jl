@@ -1,9 +1,16 @@
-using OpenEphysLoader, Main.TestContinuous, Main.TestUtilities, Base.Test
+using Compat, OpenEphysLoader
+using Main.TestUtilities, Main.TestContinuous
+
+@static if VERSION < v"0.7.0-DEV.2005"
+    using Base.Test
+else
+    using Test
+end
 
 @testset "Continuous" begin
     ### Tests ###
-    const samps_per_block = OpenEphysLoader.CONT_REC_N_SAMP
-    const cont_rec_block_size = OpenEphysLoader.CONT_REC_BLOCK_SIZE
+    samps_per_block = OpenEphysLoader.CONT_REC_N_SAMP
+    cont_rec_block_size = OpenEphysLoader.CONT_REC_BLOCK_SIZE
     # sampno_to_block
     @test OpenEphysLoader.sampno_to_block(1) == 1
     @test OpenEphysLoader.sampno_to_block(samps_per_block) == 1
@@ -35,8 +42,8 @@ using OpenEphysLoader, Main.TestContinuous, Main.TestUtilities, Base.Test
 
 
     # verify_tail!
-    const badtail = b"razzmatazz"
-    tailarr = Vector{UInt8}(10)
+    badtail = b"razzmatazz"
+    tailarr = Vector{UInt8}(undef, 10)
     filecontext(writeio -> write(writeio, badtail)) do io
         @test OpenEphysLoader.verify_tail!(io, tailarr) == false
     end
@@ -46,20 +53,20 @@ using OpenEphysLoader, Main.TestContinuous, Main.TestUtilities, Base.Test
         @test OpenEphysLoader.verify_tail!(io, tailarr) == true
     end
 
-    const testblockhead = OpenEphysLoader.BlockHeader()
-    const testblock = OpenEphysLoader.DataBlock()
+    testblockhead = OpenEphysLoader.BlockHeader()
+    testblock = OpenEphysLoader.DataBlock()
     # Data conversion
     blockdata = rand_block_data()
-    copy!(testblock.body, to_OE_bytes(blockdata))
+    @compat copyto!(testblock.body, to_OE_bytes(blockdata))
     OpenEphysLoader.convert_block!(testblock)
     @test testblock.data == blockdata
 
     # Test continuous interfaces
     # Test sample iterator
-    const nblock = 2
-    const testdata = cat(1, [rand_block_data() for i = 1:nblock]...)
-    const recno = OpenEphysLoader.CONT_REC_REC_NO_BITTYPE(0)
-    const startsamp = OpenEphysLoader.CONT_REC_TIME_BITTYPE(1)
+    nblock = 2
+    testdata = vcat([rand_block_data() for i = 1:nblock]...)
+    recno = OpenEphysLoader.CONT_REC_REC_NO_BITTYPE(0)
+    startsamp = OpenEphysLoader.CONT_REC_TIME_BITTYPE(1)
     filecontext(write_continuous, testdata, recno, startsamp) do io
         # counting utilities
         @test OpenEphysLoader.count_data(io) == length(testdata)

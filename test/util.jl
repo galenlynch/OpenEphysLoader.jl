@@ -1,5 +1,14 @@
+__precompile__()
 module TestUtilities
-using OpenEphysLoader, Base.ImmutableDict, Base.Test
+using Compat, OpenEphysLoader
+using Base: ImmutableDict
+
+@static if VERSION < v"0.7.0-DEV.2005"
+    using Base.Test
+else
+    using Test
+end
+
 export filecontext, test_fields
 
 function filecontext(file_reader::Function, args...; kwargs...)
@@ -28,11 +37,11 @@ end
 @generated function test_fields(a::Any, args...; kwargs...)
     fields = fieldnames(a)
     nfield = length(fields)
-    testarr = Vector{Expr}(nfield)
+    @compat testarr = Vector{Expr}(undef, nfield)
     for (i, field) in enumerate(fields)
         check_ex = :(get(kwarg_dict, $(QuoteNode(field)), true))
         fldtype = fieldtype(a, field)
-        moddefined = Base.datatype_module(fldtype) == OpenEphysLoader
+        @compat moddefined = parentmodule(fldtype) == OpenEphysLoader
         if moddefined
             test_ex = :(test_fields(a.$(field), args[j]...))
         else
