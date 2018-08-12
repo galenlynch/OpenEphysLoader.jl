@@ -67,7 +67,7 @@ end
         header = OriginalHeader(io)
         verify_header(header)
         @test (show(@compat(devnull), header); true) # test that it does not error
-        @test (showcompact(@compat(devnull), header); true)
+        @test (OpenEphysLoader.showcompact(@compat(devnull), header); true)
     end
 
     @test (showerror(@compat(devnull), CorruptedException("test")); true)

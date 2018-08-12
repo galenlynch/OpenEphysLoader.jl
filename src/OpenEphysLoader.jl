@@ -13,7 +13,6 @@ using Compat, LightXML
 end
 
 import Base: show,
-    showcompact,
     showerror,
     size,
     getindex,

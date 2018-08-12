@@ -232,7 +232,9 @@ function show(io::IO, a::O) where O<:OriginalHeader
         println(io, field, ": ", getfield(a, field))
     end
 end
-showcompact(io::IO, header::OriginalHeader) = show(io, "channel: $(header.channel)")
+function showcompact(io::IO, header::OriginalHeader)
+    show(IOContext(io, :compact => true), "channel: $(header.channel)")
+end
 function show(io::IO, headers::Vector{OriginalHeader})
     for header in headers
         println(io, showcompact(header))
