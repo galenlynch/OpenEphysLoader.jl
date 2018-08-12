@@ -1,5 +1,19 @@
+__precompile__()
 module TestContinuous
-using OpenEphysLoader, Main.TestUtilities, Main.TestOriginal, Base.Test
+using Compat, OpenEphysLoader
+using Main.TestUtilities, Main.TestOriginal
+
+@static if VERSION < v"0.7.0-DEV.2005"
+    using Base.Test
+else
+    using Test
+end
+
+@static if VERSION >= v"0.7.0-DEV.2575"
+    using Random
+end
+
+
 # Helper functions to test OpenEphysLoader's handling of
 # continuous files
 
@@ -72,7 +86,7 @@ end
 
 function block_idxes(blockno::Integer)
     nblocksamp = OpenEphysLoader.CONT_REC_N_SAMP
-    return (blockno - 1) * nblocksamp + (1:nblocksamp)
+    return (blockno - 1) * nblocksamp .+ (1:nblocksamp)
 end
 
 function to_block_contents(D::Vector, blockno::Integer, startsamp::Integer)
@@ -252,7 +266,7 @@ function write_continuous(
             io,
             view(
                 padded,
-                offset + (1:OpenEphysLoader.CONT_REC_N_SAMP)
+                offset .+ (1:OpenEphysLoader.CONT_REC_N_SAMP)
             ),
             tblock,
             recno
@@ -336,9 +350,9 @@ function time_conversion(
     startsamp::Integer,
     nsamp::Integer
 ) where T<:AbstractFloat
-    timepoints = (time_conversion(Int, startsamp, nsamp) - 1) / 30000
+    timepoints = (time_conversion(Int, startsamp, nsamp) .- 1) / 30000
     converted_times = similar(timepoints, T)
-    copy!(converted_times, timepoints)
+    @compat copyto!(converted_times, timepoints)
     return converted_times
 end
 

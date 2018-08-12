@@ -161,7 +161,7 @@ function OriginalHeader(io::IOStream)
     length(head) == HEADER_N_BYTES || throw(CorruptedException("Header is malformed"))
     headstr = transcode(String, head)
     isvalid(headstr) || throw(CorruptedException("Header is malformed"))
-    substrs =  split(headstr, ';', keep = false)
+    substrs =  Compat.split(headstr, ';', keepempty = false)
     resize!(substrs, N_HEADER_LINE)
     return OriginalHeader(
         map(parseline, zip(HEADER_MATTYPES, HEADER_TARGET_TYPES, substrs))...
@@ -170,15 +170,19 @@ end
 
 "Parse a line of Matlab source code"
 function parseline end
-parseline(::Type{M}, ::Type{T}, str::AbstractString) where {T, M<:MATLABdata} = parseto(T, matread(M, str))::T
+function parseline(
+    ::Type{M}, ::Type{T}, str::AbstractString
+) where {T, M<:MATLABdata}
+    parseto(T, matread(M, str))
+end
 parseline(tup::Tuple) = parseline(tup...)
 
 "Convert a string to the desired type"
 function parseto end
-parseto(::Type{T}, str::AbstractString) where {T<:Number} = parse(str)::T
+parseto(::Type{T}, str::AbstractString) where T = parse(T, str)
 function parseto(::Type{DateTime}, str::AbstractString)
     m = match(HEADER_DATE_REGEX, str)
-    isa(m, Void) && throw(CorruptedException("Time created is improperly formatted"))
+    isa(m, @compat(Nothing)) && throw(CorruptedException("Time created is improperly formatted"))
     d = DateTime(m.captures[1], HEADER_DATEFORMAT)
     local hr, mn, sc
     try
@@ -203,18 +207,18 @@ function parseto(::Type{DateTime}, str::AbstractString)
 end
 parseto(::Type{VersionNumber}, str::AbstractString) = VersionNumber(str)
 parseto(::Type{String}, str::AbstractString) = String(str)
-parseto(::Type{T}, str::T) where {T<:AbstractString} = str
+parseto(::Type{T}, str::T) where T<:AbstractString = str
 
 "read a Matlab source line"
 function matread(::Type{T}, str::S) where {T<:MATLABdata, S<:AbstractString}
     regex = rx(T)
     goodread = false
     local m
-    if ismatch(regex, str)
+    if @compat occursin(regex, str)
         m = match(rx(T), str)
         isempty(m.captures) && throw(CorruptedException("Cannot parse header"))
     end
-    return S(m.captures[1])
+    return string(m.captures[1])
 end
 
 ### Matlab regular expressions ###
@@ -222,13 +226,15 @@ rx(::Type{MATstr}) = r" = '(.*)'$"
 rx(::Type{MATint}) = r" = (\d*)$"
 rx(::Type{MATfloat}) = r" = ([-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?)$"
 
-function show(io::IO, a::OriginalHeader)
-    fields = fieldnames(a)
+function show(io::IO, a::O) where O<:OriginalHeader
+    fields = fieldnames(O)
     for field in fields
-        println(io, "$field: $(getfield(a, field))")
+        println(io, field, ": ", getfield(a, field))
     end
 end
-showcompact(io::IO, header::OriginalHeader) = show(io, "channel: $(header.channel)")
+function showcompact(io::IO, header::OriginalHeader)
+    show(IOContext(io, :compact => true), "channel: $(header.channel)")
+end
 function show(io::IO, headers::Vector{OriginalHeader})
     for header in headers
         println(io, showcompact(header))

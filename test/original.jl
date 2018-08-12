@@ -1,5 +1,16 @@
+__precompile__()
 module TestOriginal
-using OpenEphysLoader, Main.TestUtilities, Base.Test
+using Compat, OpenEphysLoader
+using Main.TestUtilities
+
+@static if VERSION < v"0.7.0-DEV.2005"
+    using Base.Test
+else
+    using Test
+end
+@static if VERSION >= v"0.7.0-DEV.2575"
+    using Dates
+end
 
 export write_fheader_fun,
     verify_header
@@ -29,7 +40,7 @@ function write_fheader_fun(
     @assert isfile(headerpath) "Could not load header file"
     open(headerpath, "r") do readio
         @assert stat(readio).size >= nbytes "Header not long enough"
-        head = readstring(readio)
+        head = read(readio, String)
     end
     trunchead = head[1:nbytes]
     return io::IOStream -> write(io, trunchead)
@@ -55,11 +66,11 @@ end
     filecontext(write_fheader_fun()) do io
         header = OriginalHeader(io)
         verify_header(header)
-        @test (show(DevNull, header); true) # test that it does not error
-        @test (showcompact(DevNull, header); true)
+        @test (show(@compat(devnull), header); true) # test that it does not error
+        @test (OpenEphysLoader.showcompact(@compat(devnull), header); true)
     end
 
-    @test (showerror(DevNull, CorruptedException("test")); true)
+    @test (showerror(@compat(devnull), CorruptedException("test")); true)
 
     # truncated header
     filecontext(write_fheader_fun(512)) do io

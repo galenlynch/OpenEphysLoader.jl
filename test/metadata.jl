@@ -1,5 +1,18 @@
+__precompile__()
 module TestMetadata
-using OpenEphysLoader, Main.TestUtilities, Base.Test
+using Compat, OpenEphysLoader
+using Main.TestUtilities
+
+@static if VERSION < v"0.7.0-DEV.2005"
+    using Base.Test
+else
+    using Test
+end
+
+@static if VERSION >= v"0.7.0-DEV.2575"
+    using Dates
+    using Random
+end
 
 test_dir = joinpath(dirname(@__FILE__), "data")
 
@@ -31,7 +44,7 @@ test_dir = joinpath(dirname(@__FILE__), "data")
         true, # dsp_offset
         0 # dsp_cutoff
     )
-    const BITVOLTS = 0.19499999284744263
+    BITVOLTS = 0.19499999284744263
     channel_1_ans = (
         "CH1",
         0,
@@ -71,10 +84,10 @@ test_dir = joinpath(dirname(@__FILE__), "data")
     test_fields(expermeta, expermeta_ans..., recordings = false, settings = false)
     @test ! isempty(expermeta.recordings)
     test_fields(expermeta.recordings[1], recording_ans..., recording_processors = false)
-    @test (show(DevNull, settings.recording_chain); true) # Test that this does not error
-    @test (show(DevNull, settings); true)
-    @test (show(DevNull, expermeta.recordings[1]); true)
-    @test (show(DevNull, expermeta); true)
+    @test @compat (show(devnull, settings.recording_chain); true) # Test that this does not error
+    @test @compat (show(devnull, settings); true)
+    @test @compat (show(devnull, expermeta.recordings[1]); true)
+    @test @compat (show(devnull, expermeta); true)
 
     #plug in settings
     @test_throws CorruptedException metadata(

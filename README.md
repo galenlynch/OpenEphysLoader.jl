@@ -23,7 +23,7 @@ For documentation on the use of `metadata`, please see the latest docs below.
 - [**LATEST**][docs-latest-url] &mdash; *in-development version of the documentation.*
 
 ## Project Status
-This package is tested against Julia `0.6`, `0.7`, and nightlies on Linux, OS X, and Windows.
+This package is tested against Julia `0.6`, `0.7`, `1.0`, and nightlies on Linux, OS X, and Windows.
 
 This package only supports reading from continuous files at the moment, with no immediate
 plans to support spike data.
