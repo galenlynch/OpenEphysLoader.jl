@@ -7,7 +7,7 @@
 | [![][docs-stable-img]][docs-stable-url] [![][docs-latest-img]][docs-latest-url]   |  [![][pkg-0.6-img]][pkg-0.6-url] | [![][travis-img]][travis-url] [![][appveyor-img]][appveyor-url] [![][codecov-img]][codecov-url]   |
 
 ## Requirements
-Julia 0.5 or higher
+Julia 0.6 or higher
 
 ## Installation
 This package is registered, so simply install it with the package manager:
