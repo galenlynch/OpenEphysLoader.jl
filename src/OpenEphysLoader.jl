@@ -1,4 +1,6 @@
-__precompile__()
+@static if VERSION < v"0.7.0-beta2.199"
+    __precompile__()
+end
 """
 Module to read the binary data files created by the OpenEphys GUI
 
