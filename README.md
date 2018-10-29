@@ -4,7 +4,7 @@
 
 | **Documentation**                                                                 | **PackageEvaluator**                                            | **Build Status**                                                                                  |
 | :-------------------------------------------------------------------------------: | :-------------------------------------------------------------: | :-----------------------------------------------------------------------------------------------: |
-| [![][docs-stable-img]][docs-stable-url] [![][docs-latest-img]][docs-latest-url]   |  [![][pkg-0.6-img]][pkg-0.6-url] | [![][travis-img]][travis-url] [![][appveyor-img]][appveyor-url] [![][codecov-img]][codecov-url]   |
+| [![][docs-stable-img]][docs-stable-url] [![][docs-latest-img]][docs-latest-url]   | [![][pkg-0.6-img]][pkg-0.6-url]                                 | [![][travis-img]][travis-url] [![][appveyor-img]][appveyor-url] [![][codecov-img]][codecov-url]   |
 
 ## Requirements
 Julia 0.6 or higher
@@ -17,8 +17,6 @@ julia> Pkg.add("OpenEphysLoader")
 ```
 
 ## Documentation
-For documentation on the use of `metadata`, please see the latest docs below.
-
 - [**STABLE**][docs-stable-url] &mdash; **most recently tagged version of the documentation.**
 - [**LATEST**][docs-latest-url] &mdash; *in-development version of the documentation.*
 
@@ -30,8 +28,6 @@ plans to support spike data.
 
 ## Contributing
 Contributions are welcome, as are feature requests and suggestions.
-
-Pull requests should be against the develop branch, as per the [Gitflow](https://www.atlassian.com/git/tutorials/comparing-workflows/gitflow-workflow) work flow.
 
 Please open an issue if you encounter any problems.
 
