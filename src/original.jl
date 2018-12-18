@@ -199,7 +199,7 @@ function parseto(::Type{DateTime}, str::AbstractString)
     # Check for ambiguous time
     if mapreduce(length, +, m.captures[2:4]) == 5
         if 0 <= rem(hr, 10) <= 5 && 1 <= rem(mn, 10) <= 5 # a 'shifted' parsing would also be valid
-            warn("Header time ", str, " is ambiguous! Assigning the ambiguous digit to hours.")
+            Compat.@warn("Header time ", str, " is ambiguous! Assigning the ambiguous digit to hours.")
         end
     end
     dt = d + Dates.Hour(hr) + Dates.Minute(mn) + Dates.Second(sc)
