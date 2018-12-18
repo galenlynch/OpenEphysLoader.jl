@@ -1,4 +1,5 @@
 __precompile__()
+
 """
 Module to read the binary data files created by the OpenEphys GUI
 

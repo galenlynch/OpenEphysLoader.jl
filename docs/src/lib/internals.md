@@ -3,6 +3,6 @@
 Documentation of the `OpenEphysLoader.jl` internals.
 
 ```@autodocs
-Modules = [OpenEphysLoader]
+Modules = [OpenEphysLoader.OpenEphysLoader]
 Public = false
 ```

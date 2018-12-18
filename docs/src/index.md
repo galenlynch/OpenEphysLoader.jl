@@ -20,9 +20,8 @@ These arrays can be constructed with a `IOStream` at the beginning of an open
 For this example, we will demonstrate how to access sample values using `SampleArray`.
 
 ```@setup loader
-docpath = @__FILE__()
-docdir = dirname(docpath)
-relloadpath = joinpath(docdir, "../test/data")
+docdir = pwd()
+relloadpath = joinpath(docdir, "../../test/data")
 datadir = realpath(relloadpath)
 absloadfile = joinpath(datadir, "100_AUX1.continuous")
 open(absloadfile, "r") do dataio
