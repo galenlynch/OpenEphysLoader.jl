@@ -331,7 +331,7 @@ convert_data(OE::A, data) where {A<:OEContArray} = convert_data(A, OE.contfile.h
 function convert_data(
     ::Type{SampleArray{T, C}}, H::OriginalHeader, data::Integer
 ) where {T<:AbstractFloat, C}
-    return convert(T, data * H.bitvolts)
+    return data * convert(T, H.bitvolts)
 end
 function convert_data(
     ::Type{SampleArray{T, C}}, ::OriginalHeader, data::Integer
