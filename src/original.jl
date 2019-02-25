@@ -105,7 +105,7 @@ struct OriginalHeader{T<:AbstractString, S<:Integer, R<:Real}
         bitvolts::R
     ) where {T<:AbstractString, S<:Integer, R<:Real}
         format == "Open Ephys Data Format" || throw(CorruptedException("Header is malformed"))
-        version == v"0.4" || throw(CorruptedException("Header is malformed"))
+        version == v"0.4" || version == v"0.2" || throw(CorruptedException("Header is malformed"))
         return new{T, S, R}(
             format,
             version,
