@@ -2,9 +2,9 @@
 
 *A set of tools to load data written by the [Open Ephys GUI](http://www.open-ephys.org/gui/)*
 
-| **Documentation**                                                                 | **PackageEvaluator**                                            | **Build Status**                                                                                  |
-| :-------------------------------------------------------------------------------: | :-------------------------------------------------------------: | :-----------------------------------------------------------------------------------------------: |
-| [![][docs-stable-img]][docs-stable-url] [![][docs-latest-img]][docs-latest-url]   | [![][pkg-0.6-img]][pkg-0.6-url]                                 | [![][travis-img]][travis-url] [![][appveyor-img]][appveyor-url] [![][codecov-img]][codecov-url]   |
+| **Documentation**                                                                 | **Build Status**                                                                                  |
+| :-------------------------------------------------------------------------------: | :-----------------------------------------------------------------------------------------------: |
+| [![][docs-stable-img]][docs-stable-url] [![][docs-latest-img]][docs-latest-url]   | [![][travis-img]][travis-url] [![][appveyor-img]][appveyor-url] [![][codecov-img]][codecov-url]   |
 
 ## Requirements
 Julia 0.6 or higher
@@ -45,6 +45,3 @@ Please open an issue if you encounter any problems.
 
 [codecov-img]: https://codecov.io/gh/galenlynch/OpenEphysLoader.jl/branch/master/graph/badge.svg
 [codecov-url]: https://codecov.io/gh/galenlynch/OpenEphysLoader.jl
-
-[pkg-0.6-img]: http://pkg.julialang.org/badges/OpenEphysLoader_0.6.svg
-[pkg-0.6-url]: http://pkg.julialang.org/?pkg=OpenEphysLoader
