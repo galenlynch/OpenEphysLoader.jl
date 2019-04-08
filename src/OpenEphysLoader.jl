@@ -8,6 +8,7 @@ Provides array interfaces to file contents, without loading the entire file into
 module OpenEphysLoader
 # Module to interact with Open Ephys files
 using Compat, LightXML
+using Base: @propagate_inbounds
 
 @static if VERSION >= v"0.7.0-DEV.2575"
     using Dates
