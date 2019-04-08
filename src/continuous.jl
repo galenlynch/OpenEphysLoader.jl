@@ -16,11 +16,8 @@ const CONT_REC_BLOCK_SIZE = CONT_REC_HEAD_SIZE + CONT_REC_BODY_SIZE +
     CONT_REC_TAIL_SIZE
 
 ### Types ###
-"Type to buffer continuous file contents"
-abstract type BlockBuffer end
-
 "Represents the header of each data block"
-mutable struct BlockHeader <: BlockBuffer
+mutable struct BlockHeader
     timestamp::CONT_REC_TIME_BITTYPE
     nsample::CONT_REC_N_SAMP_BITTYPE
     recordingnumber::CONT_REC_REC_NO_BITTYPE
@@ -28,7 +25,7 @@ end
 BlockHeader() = BlockHeader(0, 0, 0)
 
 "Represents the entirety of a data block"
-mutable struct DataBlock <: BlockBuffer
+mutable struct DataBlock
     head::BlockHeader
     body::Vector{UInt8}
     data::Vector{CONT_REC_SAMP_BITTYPE}
