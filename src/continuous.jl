@@ -221,7 +221,7 @@ end
 @inline function _getindex(A::OEContArray, i::Integer)
     prepare_block!(A, i)
     relidx = sampno_to_offset(i)
-    data = @inbounds block_data(A, relidx)
+    @inbounds data = block_data(A, relidx)
     return convert_data(A, data)
 end
 
@@ -322,7 +322,7 @@ end
 
 ### Methods to access data in buffer ###
 @inline @propagate_inbounds block_data(A::SampleArray, rel_idx::Integer) =
-    @inbounds A.block.data[rel_idx]
+    @inbounds return A.block.data[rel_idx]
 @inline block_data(A::TimeArray, rel_idx::Integer) =
     A.block.timestamp + rel_idx - 1
 @inline block_data(A::RecNoArray, ::Integer) = A.block.recordingnumber
