@@ -250,6 +250,7 @@ function block_start_pos(blockno::Integer)
     return (blockno - 1) * CONT_REC_BLOCK_SIZE + HEADER_N_BYTES
 end
 
+# Un-exported utility function for debugging
 function pos_to_blockno(pos::Integer)
     if pos < 0
         throw(ArgumentError("Invalid position"))
