@@ -36,9 +36,12 @@ mutable struct DataBlock
         data::Vector{CONT_REC_SAMP_BITTYPE},
         tail::Vector{UInt8}
     )
-        length(body) == CONT_REC_BODY_SIZE || error("body length must be ", CONT_REC_BODY_SIZE)
-        length(data) == CONT_REC_N_SAMP || error("data length must be ", CONT_REC_N_SAMP)
-        length(tail) == CONT_REC_TAIL_SIZE || error("data length must be ", CONT_REC_TAIL_SIZE)
+        length(body) == CONT_REC_BODY_SIZE ||
+            error("body length must be ", CONT_REC_BODY_SIZE)
+        length(data) == CONT_REC_N_SAMP ||
+            error("data length must be ", CONT_REC_N_SAMP)
+        length(tail) == CONT_REC_TAIL_SIZE ||
+            error("data length must be ", CONT_REC_TAIL_SIZE)
         return new(head, body, data, tail)
     end
 end
