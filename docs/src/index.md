@@ -107,7 +107,7 @@ Create a regular Julia `Array` from OpenEphysLoader.jl arrays.
 ```@example loader
 io = open(path, "r")
 A = SampleArray(Int16, io) # Elements of A will be read from disk
-D = Array(A) # This will copy the entire contents of A into a regular Julia array in RAM
+D = collect(A) # This will copy the entire contents of A into a regular Julia array in RAM
 D[1:3]
 ```
 ## Recording metadata
