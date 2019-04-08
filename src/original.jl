@@ -227,7 +227,7 @@ parseto(::Type{T}, str::T) where T<:AbstractString = str
 "read a Matlab source line"
 function matread(::Type{T}, str::S) where {T<:MatlabData, S<:AbstractString}
     m = match(rx(T), str)
-    isnothing(m) && throw(CorruptedException("Cannot parse header"))
+    m == nothing && throw(CorruptedException("Cannot parse header"))
     string(m[1])
 end
 
