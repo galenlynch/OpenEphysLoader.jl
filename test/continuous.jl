@@ -100,8 +100,8 @@ end
 
 
 function test_OEContArray_contents(
-    A::SampleArray{T, C}, D::Vector, varargs...
-) where {T<:Real,C}
+    A::SampleArray{T}, D::Vector, varargs...
+) where {T<:Real}
     @test OpenEphysLoader.block_data(A, 1) == A.block.data[1]
     @test OpenEphysLoader.block_data(A, 1024) == A.block.data[1024]
     @test [OpenEphysLoader.convert_data(A, A.block.data[1])] ==
@@ -109,11 +109,11 @@ function test_OEContArray_contents(
     verify_samples(copy(A), D)
 end
 function test_OEContArray_contents(
-    A::TimeArray{T, C},
+    A::TimeArray{T},
     D::Vector,
     ::Integer,
     startsamp::Integer
-) where {T<:Real,C}
+) where {T<:Real}
     @test OpenEphysLoader.block_data(A, 1) == A.block.timestamp
     @test OpenEphysLoader.block_data(A, 2) == A.block.timestamp + 1
     @test [OpenEphysLoader.convert_data(A, A.block.timestamp)] ==
@@ -121,11 +121,11 @@ function test_OEContArray_contents(
     verify_times(copy(A), startsamp, length(D))
 end
 function test_OEContArray_contents(
-    A::RecNoArray{T, C},
+    A::RecNoArray{T},
     D::Vector,
     recno::Integer,
     ::Integer
-) where {T<:Integer,C}
+) where {T<:Integer}
     @test OpenEphysLoader.block_data(A, 1) == recno
     @test OpenEphysLoader.block_data(A, 2) == recno
     @test OpenEphysLoader.convert_data(A, A.block.recordingnumber) ==
@@ -133,11 +133,11 @@ function test_OEContArray_contents(
     verify_recnos(copy(A), recno, length(D))
 end
 function test_OEContArray_contents(
-    A::JointArray{Tuple{S,T,R}, C},
+    A::JointArray{Tuple{S,T,R}},
     D::Vector,
     recno::Integer,
     startsamp::Integer
-) where {S<:Real,T<:Real,R<:Integer,C}
+) where {S<:Real,T<:Real,R<:Integer}
     @test OpenEphysLoader.block_data(A, 1) == (A.block.data[1],
                                                A.block.head.timestamp,
                                                recno)

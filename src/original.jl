@@ -58,46 +58,46 @@ not an "OpenEphys" data format, or not version 0.4 of the data format.
 
 **`bitvolts`** are the Volts per ADC bit.
 """
-struct OriginalHeader{T<:AbstractString, S<:Integer, R<:Real}
+struct OriginalHeader
     "Data format"
-    format::T
+    format::String
     "Version of data format"
     version::VersionNumber
     "Number of bytes in the header"
-    headerbytes::S
+    headerbytes::Int
     "Description of the header"
-    description::T
+    description::String
     "Time file created"
     created::DateTime
     "Channel name"
-    channel::T
+    channel::String
     "Channel type"
-    channeltype::T
+    channeltype::String
     "Sample rate for file"
-    samplerate::S
+    samplerate::Int
     "Length of data blocks in bytes"
-    blocklength::S
+    blocklength::Int
     "Size of buffer in bytes"
-    buffersize::S
+    buffersize::Int
     "Volts/bit of ADC values"
-    bitvolts::R
+    bitvolts::Float64
 
-    function OriginalHeader{T, S, R}(
-        format::T,
+    function OriginalHeader(
+        format::String,
         version::VersionNumber,
-        headerbytes::S,
-        description::T,
+        headerbytes::Int,
+        description::String,
         created::DateTime,
-        channel::T,
-        channeltype::T,
-        samplerate::S,
-        blocklength::S,
-        buffersize::S,
-        bitvolts::R
-    ) where {T<:AbstractString, S<:Integer, R<:Real}
+        channel::String,
+        channeltype::String,
+        samplerate::Int,
+        blocklength::Int,
+        buffersize::Int,
+        bitvolts::Float64
+    )
         format == "Open Ephys Data Format" || throw(CorruptedException("Header is malformed"))
         version == v"0.4" || version == v"0.2" || throw(CorruptedException("Header is malformed"))
-        return new{T, S, R}(
+        return new(
             format,
             version,
             headerbytes,
@@ -111,34 +111,6 @@ struct OriginalHeader{T<:AbstractString, S<:Integer, R<:Real}
             bitvolts
         )
     end
-end
-
-function OriginalHeader(
-    format::T,
-    version::VersionNumber,
-    headerbytes::S,
-    description::T,
-    created::DateTime,
-    channel::T,
-    channeltype::T,
-    samplerate::S,
-    blocklength::S,
-    buffersize::S,
-    bitvolts::R
-) where {T<:AbstractString,S<:Integer,R<:Real}
-    return OriginalHeader{T,S,R}(
-        format,
-        version,
-        headerbytes,
-        description,
-        created,
-        channel,
-        channeltype,
-        samplerate,
-        blocklength,
-        buffersize,
-        bitvolts
-    )
 end
 
 """

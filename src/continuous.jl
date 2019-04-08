@@ -69,17 +69,17 @@ Type for an open continuous file.
 
 **`header`** [`OriginalHeader`](@ref) of the current file.
 """
-struct ContinuousFile{T<:Integer, S<:Integer, H<:OriginalHeader}
+struct ContinuousFile
     "IOStream for open continuous file"
     io::IOStream
     "Path to file, possibly empty"
     filepath::String
     "Number of samples in file"
-    nsample::T
+    nsample::Int
     "Number of data blocks in file"
-    nblock::S
+    nblock::Int
     "File header"
-    header::H
+    header::OriginalHeader
 end
 function ContinuousFile(io::IOStream, filepath::AbstractString = "")
     header = OriginalHeader(io) # Read header
@@ -118,7 +118,7 @@ and have with the following fields:
 
 **`check`** `Bool` to check each data block's validity.
 """
-abstract type OEContArray{T, C<:ContinuousFile} <: OEArray{T} end
+abstract type OEContArray{T} <: OEArray{T} end
 
 ### Stuff for code generation ###
 sampletype = Real
@@ -132,15 +132,15 @@ arraytypes = ((:SampleArray, sampletype, DataBlock, Float64),
 ### Generate array datatypes ###
 for (typename, typeparam, buffertype, defaulttype) = arraytypes
     @eval begin
-        mutable struct $(typename){T<:$(typeparam), C<:ContinuousFile} <: OEContArray{T, C}
-            contfile::C
+        mutable struct $(typename){T<:$(typeparam)} <: OEContArray{T}
+            contfile::ContinuousFile
             block::$(buffertype)
             blockno::UInt
             check::Bool
         end
         function $(typename)(
-            ::Type{T}, contfile::C, check::Bool = true
-        ) where {T, C<:ContinuousFile}
+            ::Type{T}, contfile::ContinuousFile, check::Bool = true
+        ) where {T}
             if check
                 if ! check_filesize(contfile.io)
                     throw(CorruptedException(string(
@@ -153,7 +153,7 @@ for (typename, typeparam, buffertype, defaulttype) = arraytypes
                 end
             end
             block = $(buffertype)()
-            return $(typename){T, C}(contfile, block, 0, check)
+            return $(typename){T}(contfile, block, 0, check)
         end
         function $(typename)(
             ::Type{T},
@@ -338,36 +338,36 @@ end
 convert_data(OE::A, data) where {A<:OEContArray} =
     convert_data(A, OE.contfile.header, data)
 function convert_data(
-    ::Type{SampleArray{T, C}}, H::OriginalHeader, data::Integer
-) where {T<:AbstractFloat, C}
+    ::Type{SampleArray{T}}, H::OriginalHeader, data::Integer
+) where {T<:AbstractFloat}
     return data * convert(T, H.bitvolts)
 end
 function convert_data(
-    ::Type{SampleArray{T, C}}, ::OriginalHeader, data::Integer
-) where {T<:Integer, C}
+    ::Type{SampleArray{T}}, ::OriginalHeader, data::Integer
+) where {T<:Integer}
     return convert(T, data)
 end
 function convert_data(
-    ::Type{TimeArray{T, C}}, H::OriginalHeader, data::Integer
-) where {T<:AbstractFloat, C}
+    ::Type{TimeArray{T}}, H::OriginalHeader, data::Integer
+) where {T<:AbstractFloat}
     return convert(T, (data - 1) / H.samplerate) # First sample is at time zero
 end
 function convert_data(
-    ::Type{TimeArray{T, C}}, ::OriginalHeader, data::Integer
-) where {T<:Integer, C}
+    ::Type{TimeArray{T}}, ::OriginalHeader, data::Integer
+) where {T<:Integer}
     return convert(T, data)
 end
 function convert_data(
-    ::Type{RecNoArray{T, C}}, ::OriginalHeader, data::Integer
-) where {T, C}
+    ::Type{RecNoArray{T}}, ::OriginalHeader, data::Integer
+) where {T}
     return convert(T, data)
 end
 function convert_data(
-    ::Type{JointArray{Tuple{S,T,R},C}}, H::OriginalHeader, data::Tuple
-) where {S<:sampletype,T<:timetype,R<:rectype,C}
-    samp = convert_data(SampleArray{S, C}, H, data[1])
-    timestamp = convert_data(TimeArray{T, C}, H, data[2])
-    recno = convert_data(RecNoArray{R, C}, H, data[3])
+    ::Type{JointArray{Tuple{S,T,R}}}, H::OriginalHeader, data::Tuple
+) where {S<:sampletype,T<:timetype,R<:rectype}
+    samp = convert_data(SampleArray{S}, H, data[1])
+    timestamp = convert_data(TimeArray{T}, H, data[2])
+    recno = convert_data(RecNoArray{R}, H, data[3])
     return samp, timestamp, recno
 end
 
