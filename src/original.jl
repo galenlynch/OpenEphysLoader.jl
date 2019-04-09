@@ -2,13 +2,17 @@
 
 # I'm using types as a enum here, consider changing this?
 "Abstract class for representing matlab code fragments"
-abstract type MATLABdata end
+abstract type MatlabData end
 "Type for representing Matlab strings"
-struct MATstr <: MATLABdata end
+struct MatStr <: MatlabData end
 "Type for representing Matlab integers"
-struct MATint <: MATLABdata end
-"type for representing Matlab floatingpoint numbers"
-struct MATfloat <: MATLABdata end
+struct MatInt <: MatlabData end
+"Type for representing Matlab floatingpoint numbers"
+struct MatFloat <: MatlabData end
+"Type for representing Matlab floatingpoint numbers"
+struct OEDateTime <: MatlabData end
+"Type for representing Matlab floatingpoint numbers"
+struct MatVersion <: MatlabData end
 
 "Exception type to indicate a malformed data file"
 struct CorruptedException <: Exception
@@ -21,20 +25,7 @@ Base.showerror(io::IO, e::CorruptedException) = print(io, "Corrupted Exception: 
 const HEADER_N_BYTES = 1024
 const HEADER_DATE_REGEX = r"^(\d{1,2}-\p{L}{3}-\d{4}) ([1-2]?\d)([0-5]\d)([1-5]?\d)"
 const HEADER_DATEFORMAT = Dates.DateFormat("d-u-y")
-const HEADER_TYPE_MAP = ((MATstr, String), #Format
-                        (MATfloat, VersionNumber), #Version
-                        (MATint, Int), #headerbytes
-                        (MATstr, String), #description
-                        (MATstr, DateTime), #created
-                        (MATstr, String), #channel
-                        (MATstr, String), #channeltype
-                        (MATint, Int), #samplerate
-                        (MATint, Int), #blocklength
-                        (MATint, Int), #buffersize
-                        (MATfloat, Float64)) #bitvolts
-const HEADER_MATTYPES = [x[1] for x in HEADER_TYPE_MAP]
-const HEADER_TARGET_TYPES = [x[2] for x in HEADER_TYPE_MAP]
-const N_HEADER_LINE = length(HEADER_TYPE_MAP)
+const N_HEADER_LINE = 11
 
 """
     OriginalHeader(io::IOStream)
@@ -163,19 +154,43 @@ function OriginalHeader(io::IOStream)
     isvalid(headstr) || throw(CorruptedException("Header is malformed"))
     substrs =  Compat.split(headstr, ';', keepempty = false)
     resize!(substrs, N_HEADER_LINE)
+    format = parseline(MatStr, substrs[1])
+    version = parseline(MatVersion, substrs[2])
+    headerbytes = parseline(MatInt, substrs[3])
+    description = parseline(MatStr, substrs[4])
+    created = parseline(OEDateTime, substrs[5])
+    channel = parseline(MatStr, substrs[6])
+    channeltype = parseline(MatStr, substrs[7])
+    samplerate = parseline(MatInt, substrs[8])
+    blocklength = parseline(MatInt, substrs[9])
+    buffersize = parseline(MatInt, substrs[10])
+    bitvolts = parseline(MatFloat, substrs[11])
     return OriginalHeader(
-        map(parseline, zip(HEADER_MATTYPES, HEADER_TARGET_TYPES, substrs))...
-    )::OriginalHeader{String, Int, Float64}
+        format,
+        version,
+        headerbytes,
+        description,
+        created,
+        channel,
+        channeltype,
+        samplerate,
+        blocklength,
+        buffersize,
+        bitvolts
+    )
 end
 
 "Parse a line of Matlab source code"
 function parseline end
-function parseline(
-    ::Type{M}, ::Type{T}, str::AbstractString
-) where {T, M<:MATLABdata}
-    parseto(T, matread(M, str))
+function parseline(::Type{M}, str::AbstractString) where {M<:MatlabData}
+    parseto(parsetarget(M), matread(M, str))
 end
-parseline(tup::Tuple) = parseline(tup...)
+
+parsetarget(::Type{MatStr}) = String
+parsetarget(::Type{MatInt}) = Int
+parsetarget(::Type{MatFloat}) = Float64
+parsetarget(::Type{OEDateTime}) = DateTime
+parsetarget(::Type{MatVersion}) = VersionNumber
 
 "Convert a string to the desired type"
 function parseto end
@@ -210,21 +225,18 @@ parseto(::Type{String}, str::AbstractString) = String(str)
 parseto(::Type{T}, str::T) where T<:AbstractString = str
 
 "read a Matlab source line"
-function matread(::Type{T}, str::S) where {T<:MATLABdata, S<:AbstractString}
-    regex = rx(T)
-    goodread = false
-    local m
-    if @compat occursin(regex, str)
-        m = match(rx(T), str)
-        isempty(m.captures) && throw(CorruptedException("Cannot parse header"))
-    end
-    return string(m.captures[1])
+function matread(::Type{T}, str::S) where {T<:MatlabData, S<:AbstractString}
+    m = match(rx(T), str)
+    m == nothing && throw(CorruptedException("Cannot parse header"))
+    string(m[1])
 end
 
 ### Matlab regular expressions ###
-rx(::Type{MATstr}) = r" = '(.*)'$"
-rx(::Type{MATint}) = r" = (\d*)$"
-rx(::Type{MATfloat}) = r" = ([-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?)$"
+rx(::Type{MatStr}) = r" = '(.*)'$"
+rx(::Type{MatInt}) = r" = (\d*)$"
+rx(::Type{MatFloat}) = r" = ([-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?)$"
+rx(::Type{OEDateTime}) = rx(MatStr)
+rx(::Type{MatVersion}) = rx(MatFloat)
 
 function show(io::IO, a::O) where O<:OriginalHeader
     fields = fieldnames(O)
