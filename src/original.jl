@@ -124,7 +124,7 @@ function OriginalHeader(io::IOStream)
     length(head) == HEADER_N_BYTES || throw(CorruptedException("Header is malformed"))
     headstr = transcode(String, head)
     isvalid(headstr) || throw(CorruptedException("Header is malformed"))
-    substrs =  Compat.split(headstr, ';', keepempty = false)
+    substrs =  split(headstr, ';', keepempty = false)
     resize!(substrs, N_HEADER_LINE)
     format = parseline(MatStr, substrs[1])
     version = parseline(MatVersion, substrs[2])
@@ -169,7 +169,9 @@ function parseto end
 parseto(::Type{T}, str::AbstractString) where T = parse(T, str)
 function parseto(::Type{DateTime}, str::AbstractString)
     m = match(HEADER_DATE_REGEX, str)
-    isa(m, @compat(Nothing)) && throw(CorruptedException("Time created is improperly formatted"))
+    if m === nothing
+        throw(CorruptedException("Time created is improperly formatted"))
+    end
     d = DateTime(m.captures[1], HEADER_DATEFORMAT)
     local hr, mn, sc
     try
@@ -186,7 +188,7 @@ function parseto(::Type{DateTime}, str::AbstractString)
     # Check for ambiguous time
     if mapreduce(length, +, m.captures[2:4]) == 5
         if 0 <= rem(hr, 10) <= 5 && 1 <= rem(mn, 10) <= 5 # a 'shifted' parsing would also be valid
-            Compat.@warn("Header time ", str, " is ambiguous! Assigning the ambiguous digit to hours.")
+            @warn("Header time ", str, " is ambiguous! Assigning the ambiguous digit to hours.")
         end
     end
     dt = d + Dates.Hour(hr) + Dates.Minute(mn) + Dates.Second(sc)

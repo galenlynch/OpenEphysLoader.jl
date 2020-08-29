@@ -309,7 +309,7 @@ function OERecordingMeta(settings::OESettings{S, T}, rec_e::LightXML.XMLElement)
         throw(CorruptedException("Could not find PROCESSOR elements"))
     end
     nproc = length(proc_es)
-    @compat rec_procs = Vector{T}(undef, nproc)
+    rec_procs = Vector{T}(undef, nproc)
 
     for (i, proc_e) in enumerate(proc_es)
         id = find_matching_proc(settings.recording_chain, proc_e)
@@ -367,7 +367,7 @@ function OEExperMeta(settings::OESettings{S, T}, exper_e::LightXML.XMLElement) w
         throw(CorruptedException("Could not find RECORDING elements"))
     end
     nrec = length(rec_es)
-    @compat recordings = Vector{OERecordingMeta{T}}(undef, nrec)
+    recordings = Vector{OERecordingMeta{T}}(undef, nrec)
     for (i, rec_e) in enumerate(rec_es)
         recordings[i] = OERecordingMeta(settings, rec_e)
     end
@@ -424,7 +424,7 @@ function channel_arr(proc_e::LightXML.XMLElement, ::Type{T} = String) where {T<:
     end
     nchan = length(channel_vec)
     chan_rec = fill(false, nchan)
-    @compat chnos = Array{Int}(undef, nchan)
+    chnos = Array{Int}(undef, nchan)
     for (i, chan_e) in enumerate(channel_vec)
         sel_e = required_find_element(chan_e, "SELECTIONSTATE")
         record_attr = attribute(sel_e, "record", required=true)
@@ -441,7 +441,7 @@ function channel_arr(proc_e::LightXML.XMLElement, ::Type{T} = String) where {T<:
     # Channel info
     ch_info_e = required_find_element(proc_e, "CHANNEL_INFO")
     chinfo_children = collect(child_elements(ch_info_e))
-    @compat channels = Array{OEChannel{T}}(undef, nrec)
+    channels = Array{OEChannel{T}}(undef, nrec)
     recno = 1
     for (i, chan_e) in enumerate(chinfo_children)
         if chan_rec[i]
@@ -451,7 +451,7 @@ function channel_arr(proc_e::LightXML.XMLElement, ::Type{T} = String) where {T<:
             chname = attribute(chan_e, "name", required = true)
             bitvolt_attr = attribute(chan_e, "gain", required = true)
             bitvolts = parse(Float64, bitvolt_attr)
-            @compat channels[recno] = OEChannel{String}(chname,
+            channels[recno] = OEChannel{String}(chname,
                                                 info_chno,
                                                 bitvolts,
                                                 Vector{Int}(),
@@ -517,7 +517,7 @@ function recordings_are_consistent(rec_es::Vector{LightXML.XMLElement})
     chan_xml = XmlNode("CHANNEL", XmlNode[], ["name", "filename"])
     proc_xml = XmlNode("PROCESSOR", [chan_xml], ["id"])
     nrec = length(rec_es)
-    @compat attr_sets = Vector{Set{String}}(undef, nrec)
+    attr_sets = Vector{Set{String}}(undef, nrec)
     for (i, rec_e) in enumerate(rec_es)
         attr_sets[i] = Set(recurse_xml_attr(rec_e, proc_xml))
     end
@@ -585,7 +585,7 @@ end
 ### Helper Functions ###
 function required_find_element(e::LightXML.XMLElement, name::AbstractString)
     maybe_e = find_element(e, name)
-    @compat isa(maybe_e, Nothing) && throw(CorruptedException("Could not find $name element"))
+    isa(maybe_e, Nothing) && throw(CorruptedException("Could not find $name element"))
     return maybe_e
 end
 

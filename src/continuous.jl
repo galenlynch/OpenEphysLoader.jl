@@ -47,9 +47,9 @@ mutable struct DataBlock
 end
 function DataBlock()
     head = BlockHeader()
-    body = @compat Vector{UInt8}(undef, CONT_REC_BODY_SIZE)
-    data = @compat Vector{CONT_REC_SAMP_BITTYPE}(undef, CONT_REC_N_SAMP)
-    tail =  @compat Vector{UInt8}(undef, CONT_REC_TAIL_SIZE)
+    body = Vector{UInt8}(undef, CONT_REC_BODY_SIZE)
+    data = Vector{CONT_REC_SAMP_BITTYPE}(undef, CONT_REC_N_SAMP)
+    tail =  Vector{UInt8}(undef, CONT_REC_TAIL_SIZE)
     DataBlock(head, body, data, tail)
 end
 
@@ -316,7 +316,7 @@ read_into!(io::IOStream, head::BlockHeader, ::Bool) = read_into!(io, head)
             unsafe_store!(ptr, ntoh(unsafe_load(ptr, idx)), idx)
         end
     end
-    @compat unsafe_copyto!(pointer(block.data), ptr, CONT_REC_N_SAMP)
+    unsafe_copyto!(pointer(block.data), ptr, CONT_REC_N_SAMP)
     return block.data
 end
 
