@@ -7,10 +7,9 @@
 | [![][docs-stable-img]][docs-stable-url] [![][docs-latest-img]][docs-latest-url]   | [![][travis-img]][travis-url] [![][appveyor-img]][appveyor-url] [![][codecov-img]][codecov-url]   |
 
 ## Requirements
-Julia 0.6 or higher
+Julia 1.0 or higher
 
 ## Installation
-This package is registered, so simply install it with the package manager:
 
 ```julia
 julia> Pkg.add("OpenEphysLoader")
@@ -21,15 +20,9 @@ julia> Pkg.add("OpenEphysLoader")
 - [**LATEST**][docs-latest-url] &mdash; *in-development version of the documentation.*
 
 ## Project Status
-This package is tested against Julia `0.6`, `0.7`, `1.0`, `1.1`, and nightlies on Linux, OS X, and Windows.
+This package is tested against Julia `1.0`, `1`, and nightlies on Linux, OS X, and Windows.
 
-This package only supports reading from continuous files at the moment, with no immediate
-plans to support spike data.
-
-## Contributing
-Contributions are welcome, as are feature requests and suggestions.
-
-Please open an issue if you encounter any problems.
+This package only supports reading from continuous files.
 
 [docs-latest-img]: https://img.shields.io/badge/docs-latest-blue.svg
 [docs-latest-url]: https://galenlynch.github.io/OpenEphysLoader.jl/latest
