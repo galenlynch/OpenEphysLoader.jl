@@ -1,11 +1,7 @@
-using Compat, OpenEphysLoader
+using OpenEphysLoader
 using Main.TestUtilities, Main.TestContinuous
 
-@static if VERSION < v"0.7.0-DEV.2005"
-    using Base.Test
-else
-    using Test
-end
+using Test
 
 @testset "Continuous" begin
     ### Tests ###
@@ -57,7 +53,7 @@ end
     testblock = OpenEphysLoader.DataBlock()
     # Data conversion
     blockdata = rand_block_data()
-    @compat copyto!(testblock.body, to_OE_bytes(blockdata))
+    copyto!(testblock.body, to_OE_bytes(blockdata))
     OpenEphysLoader.convert_block!(testblock)
     @test testblock.data == blockdata
 

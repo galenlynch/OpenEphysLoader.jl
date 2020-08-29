@@ -1,17 +1,11 @@
 __precompile__()
 module TestContinuous
-using Compat, OpenEphysLoader
+using OpenEphysLoader
 using Main.TestUtilities, Main.TestOriginal
 
-@static if VERSION < v"0.7.0-DEV.2005"
-    using Base.Test
-else
-    using Test
-end
+using Test
 
-@static if VERSION >= v"0.7.0-DEV.2575"
-    using Random
-end
+using Random
 
 
 # Helper functions to test OpenEphysLoader's handling of
@@ -352,7 +346,7 @@ function time_conversion(
 ) where T<:AbstractFloat
     timepoints = (time_conversion(Int, startsamp, nsamp) .- 1) / 30000
     converted_times = similar(timepoints, T)
-    @compat copyto!(converted_times, timepoints)
+    copyto!(converted_times, timepoints)
     return converted_times
 end
 

@@ -1,16 +1,9 @@
 __precompile__()
 module TestOriginal
-using Compat, OpenEphysLoader
+using OpenEphysLoader
 using Main.TestUtilities
 
-@static if VERSION < v"0.7.0-DEV.2005"
-    using Base.Test
-else
-    using Test
-end
-@static if VERSION >= v"0.7.0-DEV.2575"
-    using Dates
-end
+using Test, Dates
 
 export write_fheader_fun,
     verify_header
@@ -66,11 +59,11 @@ end
     filecontext(write_fheader_fun()) do io
         header = OriginalHeader(io)
         verify_header(header)
-        @test (show(@compat(devnull), header); true) # test that it does not error
-        @test (OpenEphysLoader.showcompact(@compat(devnull), header); true)
+        @test (show(devnull, header); true) # test that it does not error
+        @test (OpenEphysLoader.showcompact(devnull, header); true)
     end
 
-    @test (showerror(@compat(devnull), CorruptedException("test")); true)
+    @test (showerror(devnull, CorruptedException("test")); true)
 
     # truncated header
     filecontext(write_fheader_fun(512)) do io
