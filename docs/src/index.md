@@ -50,7 +50,7 @@ In order to access the raw ADC codes, pass an integer type (ADC reads are `Int16
 as the first argument when constructing a [`SampleArray`](@ref):
 
 ```@example loader
-seek(io, 0) # IOStream neeeds to be at the beginning of the data file
+seek(io, 0) # IOStream needs to be at the beginning of the data file
 A = SampleArray(Int16, io)
 A[1:3]
 ```
